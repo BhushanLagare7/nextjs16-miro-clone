@@ -97,7 +97,7 @@ export function SearchInput() {
       { skipEmptyString: true, skipNull: true },
     );
 
-    router.push(url);
+    router.replace(url);
   }, [debouncedValue, router]);
 
   return (

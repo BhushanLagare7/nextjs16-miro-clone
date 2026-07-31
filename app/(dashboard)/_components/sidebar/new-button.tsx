@@ -14,10 +14,16 @@
 "use client";
 
 import { CreateOrganization } from "@clerk/nextjs";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { PlusIcon } from "lucide-react";
 
 import { Hint } from "@/components/hint";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export function NewButton() {
   return (
@@ -51,7 +57,11 @@ export function NewButton() {
         Dialog content renders Clerk's CreateOrganization form.
         Transparent background and no border to preserve Clerk's default component styling.
       */}
-      <DialogContent className="max-w-120 border-none bg-transparent p-0">
+      <DialogContent className="max-w-120 border-none bg-transparent p-0" showCloseButton={false}>
+        {/* Visually hidden title satisfies Radix/ARIA dialog accessibility requirements */}
+        <VisuallyHidden.Root>
+          <DialogTitle>Create organization</DialogTitle>
+        </VisuallyHidden.Root>
         <CreateOrganization />
       </DialogContent>
     </Dialog>
