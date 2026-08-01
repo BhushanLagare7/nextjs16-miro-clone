@@ -10,6 +10,10 @@ import { EmptyFavorites } from "./empty-favorites";
 import { EmptySearch } from "./empty-search";
 import { NewBoardButton } from "./new-board-button";
 
+/** Shared responsive grid layout used in both loading and populated states. */
+const GRID_CLASS_NAME =
+  "mt-8 grid grid-cols-1 gap-5 pb-10 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+
 /**
  * Props for the BoardList component.
  *
@@ -77,7 +81,7 @@ export function BoardList({ orgId, query }: BoardListProps) {
         </h2>
 
         {/* Skeleton grid — mirrors the populated grid layout */}
-        <div className="mt-8 grid grid-cols-1 gap-5 pb-10 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+        <div className={GRID_CLASS_NAME}>
           {/* Disabled while loading to prevent premature board creation */}
           <NewBoardButton disabled orgId={orgId} />
           <BoardCard.Skeleton />
@@ -131,7 +135,7 @@ export function BoardList({ orgId, query }: BoardListProps) {
        * - 5 columns on xl
        * - 6 columns on 2xl
        */}
-      <div className="mt-8 grid grid-cols-1 gap-5 pb-10 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+      <div className={GRID_CLASS_NAME}>
         {/* Entry point for creating a new board */}
         <NewBoardButton orgId={orgId} />
 

@@ -67,14 +67,11 @@ export const useApiMutation = <Mutation extends FunctionReference<"mutation">>(
    */
   const mutate = async (payload: Parameters<typeof apiMutation>[0]) => {
     setPending(true);
-    return apiMutation(payload)
-      .finally(() => setPending(false)) // Always reset pending state
-      .then((result) => {
-        return result;
-      })
-      .catch((error) => {
-        throw error; // Re-throw to allow caller-level error handling
-      });
+    try {
+      return await apiMutation(payload);
+    } finally {
+      setPending(false);
+    }
   };
 
   return {

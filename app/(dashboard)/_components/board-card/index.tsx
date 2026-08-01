@@ -140,7 +140,7 @@ export function BoardCard({
         {/* Card image area — fills available space, shows overlay and actions on hover */}
         <div className="relative flex-1 bg-amber-50">
           {/* Board thumbnail / preview image */}
-          <Image alt={title} className="object-fit" fill src={imageUrl} />
+          <Image alt={title} className="object-cover" fill src={imageUrl} />
 
           {/* Semi-transparent black overlay revealed on group hover */}
           <Overlay />

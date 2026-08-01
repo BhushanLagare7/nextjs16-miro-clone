@@ -106,7 +106,9 @@ export function Actions({
   return (
     <DropdownMenu>
       {/* Renders the trigger element without wrapping it in an additional DOM element */}
-      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+        {children}
+      </DropdownMenuTrigger>
 
       <DropdownMenuContent
         className="w-60"

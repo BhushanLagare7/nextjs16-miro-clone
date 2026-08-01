@@ -106,13 +106,15 @@ export const create = mutation({
 export const remove = mutation({
   args: { id: v.id("boards") },
   handler: async (ctx, args) => {
-    const identity = await requireIdentity(ctx);
-    const userId = identity.subject;
+    await requireIdentity(ctx);
 
-    const existingFavorite = await getFavorite(ctx, userId, args.id);
+    const allFavorites = await ctx.db
+      .query("userFavorites")
+      .withIndex("by_board", (q) => q.eq("boardId", args.id))
+      .collect();
 
-    if (existingFavorite) {
-      await ctx.db.delete(existingFavorite._id);
+    for (const fav of allFavorites) {
+      await ctx.db.delete(fav._id);
     }
 
     await ctx.db.delete(args.id);
@@ -180,7 +182,7 @@ export const favorite = mutation({
     await ctx.db.insert("userFavorites", {
       userId,
       boardId: board._id,
-      orgId: args.orgId,
+      orgId: board.orgId,
     });
 
     return board;

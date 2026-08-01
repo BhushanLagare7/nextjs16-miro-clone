@@ -37,7 +37,7 @@ export const get = query({
     }
 
     // --- Favorites-only listing -------------------------------------
-    if (args.favorites) {
+    if (args.favorites === "true") {
       const favoritedBoards = await ctx.db
         .query("userFavorites")
         .withIndex("by_user_org", (q) =>
