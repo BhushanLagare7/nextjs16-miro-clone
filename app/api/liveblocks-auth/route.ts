@@ -21,6 +21,25 @@ const liveblocks = new Liveblocks({
 });
 
 /**
+ * Type guard verifying that a parsed JSON request body has the
+ * expected shape `{ room: string }`, where `room` is a non-empty
+ * string.
+ *
+ * @param payload - Unknown value parsed from the request body.
+ * @returns `true` if `payload` matches the expected shape, narrowing
+ *          its type to `{ room: string }` for the caller.
+ */
+function isValidRoomPayload(payload: unknown): payload is { room: string } {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    "room" in payload &&
+    typeof payload.room === "string" &&
+    payload.room.length > 0
+  );
+}
+
+/**
  * Handles Liveblocks room authorization requests.
  *
  * Flow:
@@ -32,6 +51,7 @@ const liveblocks = new Liveblocks({
  *
  * @param request - Incoming HTTP request. Expected JSON body: `{ room: string }`.
  * @returns A `Response` containing the Liveblocks authorization payload,
+ *          a 400 response if the request body is missing or invalid,
  *          or a 403 response if the user is unauthorized.
  */
 export async function POST(request: Request) {
@@ -42,7 +62,18 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 403 });
   }
 
-  const { room }: { room: Id<"boards"> } = await request.json();
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return new Response("Invalid room", { status: 400 });
+  }
+
+  if (!isValidRoomPayload(payload)) {
+    return new Response("Invalid room", { status: 400 });
+  }
+
+  const room = payload.room as Id<"boards">;
   const board = await convex.query(api.board.get, { id: room });
 
   // Ensure the board belongs to the same organization as the requester.
@@ -57,9 +88,8 @@ export async function POST(request: Request) {
 
   const session = liveblocks.prepareSession(user.id, { userInfo });
 
-  if (room) {
-    session.allow(room, ["*:write"]);
-  }
+  // `room` is already validated as a non-empty string above.
+  session.allow(room, ["*:write"]);
 
   const { status, body } = await session.authorize();
 
