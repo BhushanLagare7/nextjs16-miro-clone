@@ -31,6 +31,15 @@ const images = [
 ];
 
 /**
+ * Picks a random placeholder cover image from the `images` pool.
+ *
+ * @returns A randomly selected image path.
+ */
+function getRandomImage(): string {
+  return images[Math.floor(Math.random() * images.length)];
+}
+
+/**
  * Verifies that the current request is authenticated and returns the
  * caller's identity.
  *
@@ -83,14 +92,12 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
 
-    const randomImage = images[Math.floor(Math.random() * images.length)];
-
     const board = await ctx.db.insert("boards", {
       title: args.title,
       orgId: args.orgId,
       authorId: identity.subject,
       authorName: identity.name ?? identity.email ?? "Anonymous",
-      imageUrl: randomImage,
+      imageUrl: getRandomImage(),
     });
 
     return board;
@@ -100,6 +107,9 @@ export const create = mutation({
 /**
  * Deletes a board, along with the authenticated user's favorite entry for
  * it, if one exists.
+ *
+ * All favorite entries and the board itself are deleted concurrently,
+ * since none of these deletions depend on one another.
  *
  * @throws {Error} If the caller is not authenticated.
  */
@@ -113,11 +123,10 @@ export const remove = mutation({
       .withIndex("by_board", (q) => q.eq("boardId", args.id))
       .collect();
 
-    for (const fav of allFavorites) {
-      await ctx.db.delete(fav._id);
-    }
-
-    await ctx.db.delete(args.id);
+    await Promise.all([
+      ...allFavorites.map((fav) => ctx.db.delete(fav._id)),
+      ctx.db.delete(args.id),
+    ]);
   },
 });
 
@@ -157,6 +166,10 @@ export const update = mutation({
 /**
  * Marks a board as a favorite of the authenticated user.
  *
+ * The board lookup and the existing-favorite lookup are independent of
+ * each other (both only require `args.id` and the caller's identity), so
+ * they are performed concurrently.
+ *
  * @throws {Error} If the caller is not authenticated, the board does not
  * exist, or the board is already favorited by the user.
  */
@@ -164,16 +177,16 @@ export const favorite = mutation({
   args: { id: v.id("boards"), orgId: v.string() },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
+    const userId = identity.subject;
 
-    const board = await ctx.db.get(args.id);
+    const [board, existingFavorite] = await Promise.all([
+      ctx.db.get(args.id),
+      getFavorite(ctx, userId, args.id),
+    ]);
 
     if (!board) {
       throw new Error("Board not found");
     }
-
-    const userId = identity.subject;
-
-    const existingFavorite = await getFavorite(ctx, userId, board._id);
 
     if (existingFavorite) {
       throw new Error("Board already favorited");
@@ -192,6 +205,10 @@ export const favorite = mutation({
 /**
  * Removes a board from the authenticated user's favorites.
  *
+ * The board lookup and the existing-favorite lookup are independent of
+ * each other (both only require `args.id` and the caller's identity), so
+ * they are performed concurrently.
+ *
  * @throws {Error} If the caller is not authenticated, the board does not
  * exist, or the board was not previously favorited by the user.
  */
@@ -199,16 +216,16 @@ export const unfavorite = mutation({
   args: { id: v.id("boards") },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
+    const userId = identity.subject;
 
-    const board = await ctx.db.get(args.id);
+    const [board, existingFavorite] = await Promise.all([
+      ctx.db.get(args.id),
+      getFavorite(ctx, userId, args.id),
+    ]);
 
     if (!board) {
       throw new Error("Board not found");
     }
-
-    const userId = identity.subject;
-
-    const existingFavorite = await getFavorite(ctx, userId, board._id);
 
     if (!existingFavorite) {
       throw new Error("Favorited board not found");
@@ -229,7 +246,7 @@ export const unfavorite = mutation({
 export const get = query({
   args: { id: v.id("boards") },
   handler: async (ctx, args) => {
-    const board = ctx.db.get(args.id);
+    const board = await ctx.db.get(args.id);
 
     return board;
   },
