@@ -44,8 +44,8 @@ export function Participants() {
         {currentUser && (
           <UserAvatar
             borderColor={connectionIdToColor(currentUser.connectionId)}
-            fallback={currentUser.info?.name?.[0]}
-            name={`${currentUser.info?.name} (You)`}
+            fallback={currentUser.info?.name?.[0] ?? "T"}
+            name={`${currentUser.info?.name ?? "Teammate"} (You)`}
             src={currentUser.info?.picture}
           />
         )}

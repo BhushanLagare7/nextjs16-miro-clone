@@ -17,6 +17,12 @@ import { cn } from "@/lib/utils";
 import { useRenameModal } from "@/store/use-rename-modal";
 
 /**
+ * Simple heuristic to check if a string looks like a valid Convex document ID.
+ * Convex IDs for a table follow the pattern: tablePrefix + base64-ish characters.
+ */
+const CONVEX_ID_PATTERN = /^[a-z][a-z0-9_]*\|[A-Za-z0-9_-]+$/;
+
+/**
  * Props for the {@link Info} component.
  */
 interface InfoProps {
@@ -48,6 +54,15 @@ function TabSeparator() {
 }
 
 /**
+ * The app's logo mark, rendered at a fixed 28x28 size.
+ * Extracted so the "not found" and "loaded" states render an identical
+ * image element without duplicating its props.
+ */
+function BoardLogo() {
+  return <Image alt="Board logo" height={28} src="/logo.svg" width={28} />;
+}
+
+/**
  * Floating info bar displayed on the board canvas.
  *
  * Shows:
@@ -60,9 +75,20 @@ function TabSeparator() {
 export function Info({ boardId }: InfoProps) {
   const { onOpen } = useRenameModal();
 
-  const data = useQuery(api.board.get, {
-    id: boardId as Id<"boards">,
-  });
+  /**
+   * Whether `boardId` looks like a syntactically valid Convex document ID.
+   * This is a cheap, pure string test, so it is intentionally *not*
+   * memoized — the cost of a `useMemo` dependency check would exceed the
+   * cost of re-running the regex on every render.
+   */
+  const isValidId = CONVEX_ID_PATTERN.test(boardId);
+
+  // Only query Convex when the ID is well-formed; otherwise skip the
+  // request entirely (Convex returns `undefined` for skipped queries).
+  const data = useQuery(
+    api.board.get,
+    isValidId ? { id: boardId as Id<"boards"> } : "skip",
+  );
 
   /**
    * Opens the rename modal for the current board.
@@ -73,6 +99,25 @@ export function Info({ boardId }: InfoProps) {
     onOpen(data._id, data.title);
   }, [data, onOpen]);
 
+  // Loading state — query has not yet resolved.
+  if (isValidId && data === undefined) return <InfoSkeleton />;
+
+  // Board not found or boardId was invalid.
+  if (!isValidId || data === null) {
+    return (
+      <div className={cn(INFO_BAR_BASE_CLASSNAME, "gap-2")}>
+        <Link href="/">
+          <BoardLogo />
+        </Link>
+        <p className="text-muted-foreground text-sm">Board not found</p>
+      </div>
+    );
+  }
+
+  // TypeScript cannot narrow `data` through the two independent guards
+  // above (each condition mixes `isValidId` and `data`), so from its
+  // perspective `data` could still be `undefined` here. This branch is
+  // unreachable at runtime and exists solely to satisfy the type checker.
   if (!data) return <InfoSkeleton />;
 
   return (
@@ -80,7 +125,7 @@ export function Info({ boardId }: InfoProps) {
       <Hint label="Go to boards" side="bottom" sideOffset={HINT_SIDE_OFFSET}>
         <Button asChild className="px-2" variant="board">
           <Link href="/">
-            <Image alt="Board logo" height={28} src="/logo.svg" width={28} />
+            <BoardLogo />
             <span
               className={cn(
                 "ml-2 text-xl font-semibold text-black",

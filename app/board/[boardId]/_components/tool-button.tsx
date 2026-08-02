@@ -80,6 +80,7 @@ export function ToolButton({
     // Hint provides an accessible tooltip displayed to the right of the button
     <Hint label={label} side="right" sideOffset={14}>
       <Button
+        aria-label={label}
         disabled={isDisabled}
         size="icon"
         variant={isActive ? "boardActive" : "board"}
