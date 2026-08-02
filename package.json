@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.6.3",
+    "@liveblocks/client": "^3.23.0",
+    "@liveblocks/node": "^3.23.0",
+    "@liveblocks/react": "^3.23.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.42.3",
