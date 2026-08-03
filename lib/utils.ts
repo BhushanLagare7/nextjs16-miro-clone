@@ -9,7 +9,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import { Camera, Color } from "@/types/canvas";
+import { Camera, Color, Point, Side, XYWH } from "@/types/canvas";
 
 /**
  * A predefined palette of colors used to visually distinguish participants
@@ -154,4 +154,78 @@ export function getSvgPathFromStroke(stroke: number[][]) {
 
   d.push("Z");
   return d.join(" ");
+}
+
+/**
+ * Computes a new {@link XYWH} bounding box for a layer being resized by
+ * dragging one of its corner or edge handles.
+ *
+ * Each active {@link Side} flag in `corner` independently adjusts the
+ * corresponding edge of the bounding box to follow `point`, while ensuring
+ * that `width` and `height` remain non-negative (the box "flips" if the
+ * pointer crosses the opposing edge):
+ *
+ * - `Side.Left`  — moves the left edge; `x` is clamped to the right edge and
+ *   `width` is the absolute distance between them.
+ * - `Side.Right` — moves the right edge; `x` stays at the original left edge
+ *   and `width` is the absolute distance to `point.x`.
+ * - `Side.Top`   — moves the top edge; `y` is clamped to the bottom edge and
+ *   `height` is the absolute distance between them.
+ * - `Side.Bottom`— moves the bottom edge; `y` stays at the original top edge
+ *   and `height` is the absolute distance to `point.y`.
+ *
+ * Corner handles combine two flags (e.g. `Side.Top | Side.Left`) and both
+ * axes are updated independently in the same call.
+ *
+ * @param {XYWH} bounds - The layer's bounding box at the moment the resize
+ *   interaction began, used as the fixed reference frame for the opposing
+ *   edges.
+ * @param {Side} corner - A {@link Side} bitmask identifying which handle is
+ *   being dragged. Multiple sides may be combined with the bitwise OR operator
+ *   to represent a corner handle.
+ * @param {Point} point - The current canvas-space pointer position to which
+ *   the active edge(s) are being dragged.
+ * @returns {XYWH} A new bounding box reflecting the updated position and
+ *   dimensions after the resize, always with non-negative `width` and
+ *   `height`.
+ *
+ * @example
+ * // Drag the bottom-right corner to canvas point (250, 300)
+ * resizeBounds({ x: 100, y: 100, width: 100, height: 100 }, Side.Bottom | Side.Right, { x: 250, y: 300 });
+ * // => { x: 100, y: 100, width: 150, height: 200 }
+ *
+ * @example
+ * // Drag the left edge past the right edge (flipping)
+ * resizeBounds({ x: 100, y: 100, width: 100, height: 100 }, Side.Left, { x: 250, y: 150 });
+ * // => { x: 200, y: 100, width: 50, height: 100 }
+ */
+export function resizeBounds(bounds: XYWH, corner: Side, point: Point): XYWH {
+  const result = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+  };
+
+  if ((corner & Side.Left) === Side.Left) {
+    result.x = Math.min(point.x, bounds.x + bounds.width);
+    result.width = Math.abs(bounds.x + bounds.width - point.x);
+  }
+
+  if ((corner & Side.Right) === Side.Right) {
+    result.x = Math.min(point.x, bounds.x);
+    result.width = Math.abs(point.x - bounds.x);
+  }
+
+  if ((corner & Side.Top) === Side.Top) {
+    result.y = Math.min(point.y, bounds.y + bounds.height);
+    result.height = Math.abs(bounds.y + bounds.height - point.y);
+  }
+
+  if ((corner & Side.Bottom) === Side.Bottom) {
+    result.y = Math.min(point.y, bounds.y);
+    result.height = Math.abs(point.y - bounds.y);
+  }
+
+  return result;
 }
