@@ -16,11 +16,6 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { useRenameModal } from "@/store/use-rename-modal";
 
-/**
- * Simple heuristic to check if a string looks like a valid Convex document ID.
- * Convex IDs for a table follow the pattern: tablePrefix + base64-ish characters.
- */
-const CONVEX_ID_PATTERN = /^[a-z][a-z0-9_]*\|[A-Za-z0-9_-]+$/;
 
 /**
  * Props for the {@link Info} component.
@@ -75,13 +70,9 @@ function BoardLogo() {
 export function Info({ boardId }: InfoProps) {
   const { onOpen } = useRenameModal();
 
-  /**
-   * Whether `boardId` looks like a syntactically valid Convex document ID.
-   * This is a cheap, pure string test, so it is intentionally *not*
-   * memoized — the cost of a `useMemo` dependency check would exceed the
-   * cost of re-running the regex on every render.
-   */
-  const isValidId = CONVEX_ID_PATTERN.test(boardId);
+  // Reject obviously invalid IDs (empty or whitespace-only). Convex IDs
+  // are opaque strings whose format can't be validated client-side.
+  const isValidId = boardId.trim().length > 0;
 
   // Only query Convex when the ID is well-formed; otherwise skip the
   // request entirely (Convex returns `undefined` for skipped queries).
