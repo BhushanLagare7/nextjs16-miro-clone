@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { LiveObject } from "@liveblocks/client";
 import {
@@ -16,11 +16,16 @@ import {
   useCanUndo,
   useHistory,
   useMutation,
+  useOthersMapped,
   useStorage,
 } from "@liveblocks/react";
 import { nanoid } from "nanoid";
 
-import { pointerEventToCanvasPoint } from "@/lib/utils";
+import {
+  connectionIdToColor,
+  pointerEventToCanvasPoint,
+  resizeBounds,
+} from "@/lib/utils";
 import {
   Camera,
   CanvasMode,
@@ -28,12 +33,15 @@ import {
   Color,
   LayerType,
   Point,
+  Side,
+  XYWH,
 } from "@/types/canvas";
 
 import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { LayerPreview } from "./layer-preview";
 import { Participants } from "./participants";
+import { SelectionBox } from "./selection-box";
 import { Toolbar } from "./toolbar";
 
 /**
@@ -185,6 +193,123 @@ export function Canvas({ boardId }: CanvasProps) {
   );
 
   /**
+   * Moves all currently selected layers by the delta between the previous
+   * pointer position stored in `canvasState.current` and the supplied `point`.
+   *
+   * Only executes when `canvasState.mode` is `CanvasMode.Translating`; returns
+   * early otherwise. After applying the offset to every selected layer in
+   * Liveblocks shared storage, it updates `canvasState.current` to `point` so
+   * the next move event computes a correct incremental delta.
+   *
+   * @param {Point} point - The current canvas-space pointer position, used to
+   *   compute the translation offset relative to the last recorded position.
+   */
+  const translateSelectedLayers = useMutation(
+    ({ storage, self }, point: Point) => {
+      if (canvasState.mode !== CanvasMode.Translating) {
+        return;
+      }
+
+      const offset = {
+        x: point.x - canvasState.current.x,
+        y: point.y - canvasState.current.y,
+      };
+
+      const liveLayers = storage.get("layers");
+
+      for (const id of self.presence.selection) {
+        const layer = liveLayers.get(id);
+
+        if (layer) {
+          layer.update({
+            x: layer.get("x") + offset.x,
+            y: layer.get("y") + offset.y,
+          });
+        }
+      }
+
+      setCanvasState({ mode: CanvasMode.Translating, current: point });
+    },
+    [canvasState],
+  );
+
+  /**
+   * Clears the current user's layer selection by setting their presence
+   * `selection` to an empty array. The change is recorded in the shared
+   * history so it can be undone via `history.undo`.
+   *
+   * No-ops when the selection is already empty to avoid unnecessary
+   * history entries.
+   */
+  const unselectLayers = useMutation(({ self, setMyPresence }) => {
+    if (self.presence.selection.length > 0) {
+      setMyPresence({ selection: [] }, { addToHistory: true });
+    }
+  }, []);
+
+  /**
+   * Updates the bounds of the single currently selected layer in Liveblocks
+   * shared storage based on the active resize handle corner and the current
+   * pointer position.
+   *
+   * Only executes when `canvasState.mode` is `CanvasMode.Resizing`; returns
+   * early otherwise. Computes new bounds via {@link resizeBounds} using the
+   * initial bounding box and the active corner stored in `canvasState`, then
+   * writes the result back to the live layer object.
+   *
+   * @param {Point} point - The current canvas-space pointer position used to
+   *   compute the updated layer bounds.
+   */
+  const resizeSelectedLayer = useMutation(
+    ({ storage, self }, point: Point) => {
+      if (canvasState.mode !== CanvasMode.Resizing) {
+        return;
+      }
+
+      const bounds = resizeBounds(
+        canvasState.initialBounds,
+        canvasState.corner,
+        point,
+      );
+
+      const liveLayers = storage.get("layers");
+      const layer = liveLayers.get(self.presence.selection[0]);
+
+      if (layer) {
+        layer.update(bounds);
+      }
+    },
+    [canvasState],
+  );
+
+  /**
+   * Handles a pointer down event on a resize handle of the {@link SelectionBox}.
+   * Pauses the shared history so that all subsequent pointer-move resize
+   * mutations are batched into a single undoable step, then transitions the
+   * canvas into `CanvasMode.Resizing` with the affected corner and the layer's
+   * current bounding box.
+   *
+   * History is resumed in {@link onPointerUp} once the resize interaction ends.
+   *
+   * @param {Side} corner - A {@link Side} bitmask identifying which corner or
+   *   edge handle was grabbed (e.g. `Side.Top | Side.Left`).
+   * @param {XYWH} initialBounds - The bounding box of the selected layer at
+   *   the moment the resize begins, used as the reference frame for all
+   *   subsequent resize calculations.
+   */
+  const onResizeHandlePointerDown = useCallback(
+    (corner: Side, initialBounds: XYWH) => {
+      history.pause();
+      setCanvasState({
+        mode: CanvasMode.Resizing,
+        initialBounds,
+        corner,
+      });
+    },
+    [history],
+  );
+
+  /**
    * Handles mouse wheel events on the SVG canvas to pan the camera.
    * Subtracts the wheel delta values from the current camera offset so that
    * scrolling moves the canvas content in the expected direction.
@@ -201,7 +326,13 @@ export function Canvas({ boardId }: CanvasProps) {
   /**
    * Handles pointer move events on the SVG canvas. Converts the pointer's
    * client coordinates to canvas-space using the current camera offset, then
-   * broadcasts the position to other participants via `setMyPresence`.
+   * broadcasts the updated position to other participants via `setMyPresence`.
+   *
+   * Additionally drives active interactions:
+   * - In `CanvasMode.Translating`, delegates to {@link translateSelectedLayers}
+   *   to move the selected layers.
+   * - In `CanvasMode.Resizing`, delegates to {@link resizeSelectedLayer} to
+   *   update the selected layer's bounds.
    *
    * @param {React.PointerEvent} e - The pointer move event fired on the SVG
    *   element.
@@ -212,9 +343,15 @@ export function Canvas({ boardId }: CanvasProps) {
 
       const current = pointerEventToCanvasPoint(e, camera);
 
+      if (canvasState.mode === CanvasMode.Translating) {
+        translateSelectedLayers(current);
+      } else if (canvasState.mode === CanvasMode.Resizing) {
+        resizeSelectedLayer(current);
+      }
+
       setMyPresence({ cursor: current });
     },
-    [],
+    [camera, canvasState, resizeSelectedLayer, translateSelectedLayers],
   );
 
   /**
@@ -227,12 +364,45 @@ export function Canvas({ boardId }: CanvasProps) {
   }, []);
 
   /**
+   * Handles pointer down events on the SVG canvas background (not on a layer).
+   * Converts the client-space pointer position to canvas-space coordinates and,
+   * depending on the current canvas mode:
+   * - Returns early without changing state when in `CanvasMode.Inserting`,
+   *   since the insertion is committed on pointer up.
+   * - Otherwise transitions the canvas into `CanvasMode.Pressing` with the
+   *   current canvas-space point as the origin, ready to begin a selection or
+   *   drag gesture.
+   *
+   * @param {React.PointerEvent} e - The pointer down event fired on the SVG
+   *   element.
+   */
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      const point = pointerEventToCanvasPoint(e, camera);
+
+      if (canvasState.mode === CanvasMode.Inserting) {
+        return;
+      }
+
+      // TODO: Add case for drawing
+
+      setCanvasState({ origin: point, mode: CanvasMode.Pressing });
+    },
+    [camera, canvasState.mode, setCanvasState],
+  );
+
+  /**
    * Handles pointer up events on the SVG canvas. Converts the pointer
    * position to canvas-space coordinates and, depending on the current
-   * `canvasState.mode`, either inserts a new layer (when in
-   * `CanvasMode.Inserting`) or resets the canvas to idle mode. Resumes the
-   * shared history after the action completes so the operation is recorded
-   * as a single undoable step.
+   * `canvasState.mode`, performs one of the following:
+   * - `CanvasMode.None` or `CanvasMode.Pressing`: Clears the current layer
+   *   selection via {@link unselectLayers} and resets the canvas to idle mode.
+   * - `CanvasMode.Inserting`: Commits a new layer at the pointer position by
+   *   calling {@link insertLayer} with the active layer type.
+   * - Any other mode: Resets the canvas to idle mode without further action.
+   *
+   * In all cases, resumes the shared history so the completed operation is
+   * recorded as a single undoable step.
    *
    * @param {{}} _ - Unused mutation context (destructured and ignored).
    * @param {React.PointerEvent} e - The pointer up event fired on the SVG
@@ -242,7 +412,15 @@ export function Canvas({ boardId }: CanvasProps) {
     ({}, e) => {
       const point = pointerEventToCanvasPoint(e, camera);
 
-      if (canvasState.mode === CanvasMode.Inserting) {
+      if (
+        canvasState.mode === CanvasMode.None ||
+        canvasState.mode === CanvasMode.Pressing
+      ) {
+        unselectLayers();
+        setCanvasState({
+          mode: CanvasMode.None,
+        });
+      } else if (canvasState.mode === CanvasMode.Inserting) {
         insertLayer(canvasState.layerType, point);
       } else {
         setCanvasState({
@@ -252,8 +430,78 @@ export function Canvas({ boardId }: CanvasProps) {
 
       history.resume();
     },
-    [camera, canvasState, history, insertLayer],
+    [camera, canvasState, history, insertLayer, unselectLayers],
   );
+
+  /**
+   * A mapped snapshot of every other participant's current layer selection,
+   * keyed by their Liveblocks connection ID. Used by
+   * {@link layerIdsToColorSelection} to derive per-layer selection highlight
+   * colors for remote collaborators.
+   */
+  const selections = useOthersMapped((other) => other.presence.selection);
+
+  /**
+   * Handles pointer down events fired directly on an individual layer element.
+   * Pauses shared history so that the subsequent translation mutations are
+   * batched into a single undoable step, then:
+   * - Returns early without changing state when in `CanvasMode.Pencil` or
+   *   `CanvasMode.Inserting`, where layer selection is not applicable.
+   * - Adds the targeted layer to the local participant's selection (recorded
+   *   in history) if it is not already selected.
+   * - Transitions the canvas into `CanvasMode.Translating` with the current
+   *   canvas-space pointer position, enabling drag-to-move behaviour.
+   *
+   * History is resumed in {@link onPointerUp} once the interaction ends.
+   *
+   * @param {React.PointerEvent} e - The pointer down event fired on the layer
+   *   element. Propagation is stopped to prevent the SVG background handler
+   *   from also firing.
+   * @param {string} layerId - The ID of the layer that received the pointer
+   *   down event.
+   */
+  const onLayerPointerDown = useMutation(
+    ({ self, setMyPresence }, e: React.PointerEvent, layerId: string) => {
+      if (
+        canvasState.mode === CanvasMode.Pencil ||
+        canvasState.mode === CanvasMode.Inserting
+      ) {
+        return;
+      }
+
+      history.pause();
+      e.stopPropagation();
+
+      const point = pointerEventToCanvasPoint(e, camera);
+
+      if (!self.presence.selection.includes(layerId)) {
+        setMyPresence({ selection: [layerId] }, { addToHistory: true });
+      }
+      setCanvasState({ mode: CanvasMode.Translating, current: point });
+    },
+    [setCanvasState, camera, history, canvasState.mode],
+  );
+
+  /**
+   * Maps each layer id to the color representing the collaborator
+   * currently selecting it, used to render remote selection outlines.
+   *
+   * Derived from {@link selections} by iterating over each remote
+   * participant's selection array and mapping every layer ID they have
+   * selected to a color produced by {@link connectionIdToColor}.
+   * Re-computed only when `selections` changes.
+   */
+  const layerIdsToColorSelection = useMemo(() => {
+    const result: Record<string, string> = {};
+
+    for (const [connectionId, selection] of selections) {
+      for (const layerId of selection) {
+        result[layerId] = connectionIdToColor(connectionId);
+      }
+    }
+
+    return result;
+  }, [selections]);
 
   return (
     <main className="relative h-screen w-screen touch-none bg-neutral-100">
@@ -279,6 +527,7 @@ export function Canvas({ boardId }: CanvasProps) {
        */}
       <svg
         className="h-screen w-screen"
+        onPointerDown={onPointerDown}
         onPointerLeave={onPointerLeave}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -298,10 +547,17 @@ export function Canvas({ boardId }: CanvasProps) {
             <LayerPreview
               key={layerId}
               id={layerId}
-              selectionColor="#000"
-              onLayerPointerDown={() => {}}
+              selectionColor={layerIdsToColorSelection[layerId]}
+              onLayerPointerDown={onLayerPointerDown}
             />
           ))}
+
+          {/*
+           * Renders resize handles and a bounding outline around the
+           * currently selected layer(s). Notifies the canvas when a
+           * resize handle interaction begins.
+           */}
+          <SelectionBox onResizeHandlePointerDown={onResizeHandlePointerDown} />
 
           {/* Render remote participant cursors and pencil drafts */}
           <CursorsPresence />
