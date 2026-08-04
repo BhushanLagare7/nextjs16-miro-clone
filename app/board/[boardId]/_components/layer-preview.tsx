@@ -11,9 +11,14 @@ import { memo } from "react";
 
 import { useStorage } from "@liveblocks/react";
 
+import { colorToCss } from "@/lib/utils";
 import { LayerType } from "@/types/canvas";
 
+import { Ellipse } from "./ellipse";
+import { Note } from "./note";
+import { Path } from "./path";
 import { Rectangle } from "./rectangle";
+import { Text } from "./text";
 
 /**
  * Props for the LayerPreview component.
@@ -44,6 +49,10 @@ interface LayerPreviewProps {
  * - Subscribes to the layer in shared storage via `useStorage`. Returns `null`
  *   if the layer does not exist (e.g. it was deleted by another participant).
  * - Delegates rendering to the appropriate shape component:
+ *   - `LayerType.Path` → {@link Path}
+ *   - `LayerType.Note` → {@link Note}
+ *   - `LayerType.Text` → {@link Text}
+ *   - `LayerType.Ellipse` → {@link Ellipse}
  *   - `LayerType.Rectangle` → {@link Rectangle}
  * - Logs a warning and returns `null` for any unrecognised layer type,
  *   ensuring the application degrades gracefully as new layer types are added.
@@ -82,6 +91,45 @@ export const LayerPreview = memo(
     }
 
     switch (layer.type) {
+      case LayerType.Path:
+        return (
+          <Path
+            key={id}
+            fill={layer.fill ? colorToCss(layer.fill) : "#000"}
+            points={layer.points}
+            stroke={selectionColor}
+            x={layer.x}
+            y={layer.y}
+            onPointerDown={(e) => onLayerPointerDown(e, id)}
+          />
+        );
+      case LayerType.Note:
+        return (
+          <Note
+            id={id}
+            layer={layer}
+            selectionColor={selectionColor}
+            onPointerDown={onLayerPointerDown}
+          />
+        );
+      case LayerType.Text:
+        return (
+          <Text
+            id={id}
+            layer={layer}
+            selectionColor={selectionColor}
+            onPointerDown={onLayerPointerDown}
+          />
+        );
+      case LayerType.Ellipse:
+        return (
+          <Ellipse
+            id={id}
+            layer={layer}
+            selectionColor={selectionColor}
+            onPointerDown={onLayerPointerDown}
+          />
+        );
       case LayerType.Rectangle:
         return (
           <Rectangle
