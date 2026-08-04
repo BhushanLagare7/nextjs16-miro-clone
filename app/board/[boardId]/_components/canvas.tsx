@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LiveObject } from "@liveblocks/client";
 import {
@@ -17,13 +17,17 @@ import {
   useHistory,
   useMutation,
   useOthersMapped,
+  useSelf,
   useStorage,
 } from "@liveblocks/react";
 import { nanoid } from "nanoid";
 
+import { useDisableScrollBounce } from "@/hooks/use-disable-scroll-bounce";
 import {
+  colorToCss,
   connectionIdToColor,
   findIntersectingLayersWithRectangle,
+  penPointsToPathLayer,
   pointerEventToCanvasPoint,
   resizeBounds,
 } from "@/lib/utils";
@@ -42,6 +46,7 @@ import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { LayerPreview } from "./layer-preview";
 import { Participants } from "./participants";
+import { Path } from "./path";
 import { SelectionBox } from "./selection-box";
 import { SelectionTools } from "./selection-tools";
 import { Toolbar } from "./toolbar";
@@ -53,6 +58,18 @@ import { Toolbar } from "./toolbar";
  * @constant {number}
  */
 const MAX_LAYERS = 100;
+
+/**
+ * Determines whether the shared layer storage has reached the maximum
+ * allowed number of layers ({@link MAX_LAYERS}), in which case further
+ * layer insertions should be treated as a no-op.
+ *
+ * @param {number} layerCount - The current number of layers in storage.
+ * @returns {boolean} `true` if no more layers may be inserted.
+ */
+function hasReachedLayerLimit(layerCount: number): boolean {
+  return layerCount >= MAX_LAYERS;
+}
 
 /**
  * Props for the Canvas component.
@@ -104,6 +121,13 @@ export function Canvas({ boardId }: CanvasProps) {
   const layerIds = useStorage((root) => root.layerIds);
 
   /**
+   * The current user's in-progress freehand pencil stroke, expressed as an
+   * array of `[x, y, pressure]` points, sourced from local presence. `null`
+   * when no pencil stroke is currently being drawn.
+   */
+  const pencilDraft = useSelf((me) => me.presence.pencilDraft);
+
+  /**
    * Local state representing the current mode and configuration of the canvas
    * (e.g. idle, inserting a shape, drawing with pencil).
    * Initialized to `CanvasMode.None` (selection/idle mode).
@@ -127,6 +151,8 @@ export function Canvas({ boardId }: CanvasProps) {
     g: 0,
     b: 0,
   });
+
+  useDisableScrollBounce();
 
   /**
    * Liveblocks shared history object, providing `undo` and `redo` methods
@@ -171,7 +197,7 @@ export function Canvas({ boardId }: CanvasProps) {
       position: Point,
     ) => {
       const liveLayers = storage.get("layers");
-      if (liveLayers.size >= MAX_LAYERS) {
+      if (hasReachedLayerLimit(liveLayers.size)) {
         return;
       }
 
@@ -318,6 +344,111 @@ export function Canvas({ boardId }: CanvasProps) {
   );
 
   /**
+   * Appends the current pointer position to the in-progress pencil stroke
+   * stored in presence while the primary mouse button is held down in
+   * `CanvasMode.Pencil`.
+   *
+   * Returns early when not in pencil mode, when the primary button is not
+   * pressed, or when there is no active pencil draft. Avoids appending a
+   * duplicate point if the draft currently contains only the same point that
+   * was just received (prevents a redundant entry for the initial pointer
+   * down position).
+   *
+   * Also updates the local cursor position in presence.
+   *
+   * @param {Point} point - The current canvas-space pointer position to add
+   *   to the pencil draft.
+   * @param {React.PointerEvent} e - The pointer move event, used to check
+   *   which mouse buttons are currently pressed and to capture pen pressure.
+   */
+  const continueDrawing = useMutation(
+    ({ self, setMyPresence }, point: Point, e: React.PointerEvent) => {
+      const { pencilDraft } = self.presence;
+
+      if (
+        canvasState.mode !== CanvasMode.Pencil ||
+        e.buttons !== 1 ||
+        pencilDraft == null
+      ) {
+        return;
+      }
+
+      setMyPresence({
+        cursor: point,
+        pencilDraft:
+          pencilDraft.length === 1 &&
+          pencilDraft[0][0] === point.x &&
+          pencilDraft[0][1] === point.y
+            ? pencilDraft
+            : [...pencilDraft, [point.x, point.y, e.pressure]],
+      });
+    },
+    [canvasState.mode],
+  );
+
+  /**
+   * Finalizes the in-progress pencil draft into a persisted path layer in
+   * Liveblocks shared storage.
+   *
+   * If there is no draft, the draft has fewer than two points, or the
+   * {@link MAX_LAYERS} limit has been reached, the draft is discarded without
+   * creating a layer. Otherwise, converts the draft points into a path layer
+   * via {@link penPointsToPathLayer} (using `lastUsedColor` as the fill),
+   * appends it to shared storage, and clears the pencil draft from presence.
+   *
+   * The canvas mode remains `CanvasMode.Pencil` so the user can continue
+   * drawing additional strokes.
+   */
+  const insertPath = useMutation(
+    ({ storage, self, setMyPresence }) => {
+      const liveLayers = storage.get("layers");
+      const { pencilDraft } = self.presence;
+
+      if (
+        pencilDraft == null ||
+        pencilDraft.length < 2 ||
+        hasReachedLayerLimit(liveLayers.size)
+      ) {
+        setMyPresence({ pencilDraft: null });
+        return;
+      }
+
+      const id = nanoid();
+      liveLayers.set(
+        id,
+        new LiveObject(penPointsToPathLayer(pencilDraft, lastUsedColor)),
+      );
+
+      const liveLayerIds = storage.get("layerIds");
+      liveLayerIds.push(id);
+
+      setMyPresence({ pencilDraft: null });
+      setCanvasState({ mode: CanvasMode.Pencil });
+    },
+    [lastUsedColor],
+  );
+
+  /**
+   * Begins a new freehand pencil stroke by initializing the pencil draft in
+   * presence with a single starting point, and records `lastUsedColor` as the
+   * stroke's pen color.
+   *
+   * @param {Point} point - The canvas-space pointer position where the stroke
+   *   begins.
+   * @param {number} pressure - The pressure value reported by the pointer
+   *   event at the start of the stroke (e.g. from a stylus).
+   */
+  const startDrawing = useMutation(
+    ({ setMyPresence }, point: Point, pressure: number) => {
+      setMyPresence({
+        pencilDraft: [[point.x, point.y, pressure]],
+        penColor: lastUsedColor,
+      });
+    },
+    [lastUsedColor],
+  );
+
+  /**
    * Updates the bounds of the single currently selected layer in Liveblocks
    * shared storage based on the active resize handle corner and the current
    * pointer position.
@@ -407,6 +538,8 @@ export function Canvas({ boardId }: CanvasProps) {
    *   to move the selected layers.
    * - `CanvasMode.Resizing`: Delegates to {@link resizeSelectedLayer} to
    *   update the selected layer's bounds.
+   * - `CanvasMode.Pencil`: Delegates to {@link continueDrawing} to extend the
+   *   in-progress pencil stroke.
    *
    * @param {React.PointerEvent} e - The pointer move event fired on the SVG
    *   element.
@@ -425,6 +558,8 @@ export function Canvas({ boardId }: CanvasProps) {
         translateSelectedLayers(current);
       } else if (canvasState.mode === CanvasMode.Resizing) {
         resizeSelectedLayer(current);
+      } else if (canvasState.mode === CanvasMode.Pencil) {
+        continueDrawing(current, e);
       }
 
       setMyPresence({ cursor: current });
@@ -432,6 +567,7 @@ export function Canvas({ boardId }: CanvasProps) {
     [
       camera,
       canvasState,
+      continueDrawing,
       resizeSelectedLayer,
       translateSelectedLayers,
       startMultiSelection,
@@ -454,6 +590,8 @@ export function Canvas({ boardId }: CanvasProps) {
    * depending on the current canvas mode:
    * - Returns early without changing state when in `CanvasMode.Inserting`,
    *   since the insertion is committed on pointer up.
+   * - Begins a new pencil stroke via {@link startDrawing} when in
+   *   `CanvasMode.Pencil`.
    * - Otherwise transitions the canvas into `CanvasMode.Pressing` with the
    *   current canvas-space point as the origin, ready to begin a selection or
    *   drag gesture.
@@ -469,11 +607,14 @@ export function Canvas({ boardId }: CanvasProps) {
         return;
       }
 
-      // TODO: Add case for drawing
+      if (canvasState.mode === CanvasMode.Pencil) {
+        startDrawing(point, e.pressure);
+        return;
+      }
 
       setCanvasState({ origin: point, mode: CanvasMode.Pressing });
     },
-    [camera, canvasState.mode, setCanvasState],
+    [camera, canvasState.mode, setCanvasState, startDrawing],
   );
 
   /**
@@ -482,6 +623,7 @@ export function Canvas({ boardId }: CanvasProps) {
    * `canvasState.mode`, performs one of the following:
    * - `CanvasMode.None` or `CanvasMode.Pressing`: Clears the current layer
    *   selection via {@link unselectLayers} and resets the canvas to idle mode.
+   * - `CanvasMode.Pencil`: Commits the in-progress stroke via {@link insertPath}.
    * - `CanvasMode.Inserting`: Commits a new layer at the pointer position by
    *   calling {@link insertLayer} with the active layer type.
    * - Any other mode (e.g. `SelectionNet`, `Translating`, `Resizing`): Resets
@@ -492,13 +634,11 @@ export function Canvas({ boardId }: CanvasProps) {
    * In all cases, resumes the shared history so the completed operation is
    * recorded as a single undoable step.
    *
-   * @param {Record<string, never>} _ - Unused mutation context (destructured
-   *   and ignored).
    * @param {React.PointerEvent} e - The pointer up event fired on the SVG
    *   element.
    */
   const onPointerUp = useMutation(
-    ({}, e) => {
+    (_context, e: React.PointerEvent) => {
       const point = pointerEventToCanvasPoint(e, camera);
 
       if (
@@ -509,6 +649,8 @@ export function Canvas({ boardId }: CanvasProps) {
         setCanvasState({
           mode: CanvasMode.None,
         });
+      } else if (canvasState.mode === CanvasMode.Pencil) {
+        insertPath();
       } else if (canvasState.mode === CanvasMode.Inserting) {
         insertLayer(canvasState.layerType, point);
       } else {
@@ -519,7 +661,15 @@ export function Canvas({ boardId }: CanvasProps) {
 
       history.resume();
     },
-    [camera, canvasState, history, insertLayer, unselectLayers],
+    [
+      setCanvasState,
+      camera,
+      canvasState,
+      history,
+      insertLayer,
+      unselectLayers,
+      insertPath,
+    ],
   );
 
   /**
@@ -591,6 +741,37 @@ export function Canvas({ boardId }: CanvasProps) {
 
     return result;
   }, [selections]);
+
+  /**
+   * Registers a global `keydown` listener that maps keyboard shortcuts to
+   * shared history actions:
+   * - `Ctrl/Cmd + Z`: Undoes the last action via `history.undo`.
+   * - `Ctrl/Cmd + Shift + Z`: Redoes the last undone action via `history.redo`.
+   *
+   * The listener is removed on unmount or whenever `history` changes.
+   */
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      switch (e.key) {
+        case "z": {
+          if (e.ctrlKey || e.metaKey) {
+            if (e.shiftKey) {
+              history.redo();
+            } else {
+              history.undo();
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [history]);
 
   return (
     <main className="relative h-screen w-screen touch-none bg-neutral-100">
@@ -669,6 +850,15 @@ export function Canvas({ boardId }: CanvasProps) {
 
           {/* Render remote participant cursors and pencil drafts */}
           <CursorsPresence />
+
+          {pencilDraft != null && pencilDraft.length > 0 && (
+            <Path
+              fill={colorToCss(lastUsedColor)}
+              points={pencilDraft}
+              x={0}
+              y={0}
+            />
+          )}
         </g>
       </svg>
     </main>

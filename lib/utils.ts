@@ -10,7 +10,16 @@ import { LiveMap, LiveObject } from "@liveblocks/client";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import { Camera, Color, Layer, Point, Side, XYWH } from "@/types/canvas";
+import {
+  Camera,
+  Color,
+  Layer,
+  LayerType,
+  PathLayer,
+  Point,
+  Side,
+  XYWH,
+} from "@/types/canvas";
 
 /**
  * A predefined palette of colors used to visually distinguish participants
@@ -44,7 +53,7 @@ const COLORS = ["#DC2626", "#D97706", "#059669", "#7C3AED", "#DB2777"];
  * // Conditional classes
  * cn("base-class", isActive && "active-class") // => "base-class active-class"
  */
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
@@ -91,7 +100,7 @@ export function connectionIdToColor(connectionId: number): string {
 export function pointerEventToCanvasPoint(
   e: React.PointerEvent,
   camera: Camera,
-) {
+): { x: number; y: number } {
   return {
     x: Math.round(e.clientX) - camera.x,
     y: Math.round(e.clientY) - camera.y,
@@ -114,7 +123,7 @@ export function pointerEventToCanvasPoint(
  * colorToCss({ r: 0, g: 128, b: 255 }) // => "#0080ff"
  * colorToCss({ r: 0, g: 0, b: 0 })     // => "#000000"
  */
-export function colorToCss(color: Color) {
+export function colorToCss(color: Color): string {
   return `#${color.r.toString(16).padStart(2, "0")}${color.g.toString(16).padStart(2, "0")}${color.b.toString(16).padStart(2, "0")}`;
 }
 
@@ -141,7 +150,7 @@ export function colorToCss(color: Color) {
  * // => "M x0 y0 Q x0 y0 mx01 my01 x1 y1 mx12 my12 … Z"
  * <path d={d} fill="#000" />
  */
-export function getSvgPathFromStroke(stroke: number[][]) {
+export function getSvgPathFromStroke(stroke: number[][]): string {
   if (!stroke.length) return "";
 
   const d = stroke.reduce(
@@ -294,7 +303,7 @@ export function findIntersectingLayersWithRectangle(
   layers: ReadonlyMap<string, Layer> | LiveMap<string, LiveObject<Layer>>,
   a: Point,
   b: Point,
-) {
+): string[] {
   // Normalise the two corner points into a well-formed rectangle so that the
   // caller can pass them in any order (top-left → bottom-right or vice-versa).
   const rect = {
@@ -335,4 +344,123 @@ export function findIntersectingLayersWithRectangle(
   }
 
   return ids;
+}
+
+/**
+ * Determines whether black or white text will have the best readability
+ * against a given background {@link Color} by computing its perceived
+ * brightness using the ITU-R BT.601 luma coefficients
+ * (`0.299 R + 0.587 G + 0.114 B`).
+ *
+ * A luminance threshold of 182 (on a 0–255 scale) is used as the decision
+ * boundary: backgrounds brighter than this threshold receive black text,
+ * while darker backgrounds receive white text. This provides a
+ * high-contrast pairing that satisfies common accessibility guidelines.
+ *
+ * Used wherever user-chosen or layer fill colors need legible overlaid text,
+ * such as sticky-note labels or color-picker previews.
+ *
+ * @param {Color} color - The background color to evaluate, with `r`, `g`,
+ *   and `b` properties as integers in the range 0–255.
+ * @returns {"black" | "white"} `"black"` for light backgrounds,
+ *   `"white"` for dark backgrounds.
+ *
+ * @example
+ * getContrastingTextColor({ r: 255, g: 255, b: 255 }) // => "black"
+ *
+ * @example
+ * getContrastingTextColor({ r: 0, g: 0, b: 0 })       // => "white"
+ *
+ * @example
+ * // Mid-tone background (luminance ≈ 149) => white text
+ * getContrastingTextColor({ r: 100, g: 150, b: 200 })  // => "white"
+ */
+export function getContrastingTextColor(color: Color): "black" | "white" {
+  const luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+
+  return luminance > 182 ? "black" : "white";
+}
+
+/**
+ * Converts an array of raw pen/pointer input points (as captured during a
+ * freehand drawing gesture) into a {@link PathLayer} ready to be persisted
+ * in Liveblocks shared storage.
+ *
+ * The algorithm performs a single pass over `points` to compute the axis-
+ * aligned bounding box (`left`, `top`, `right`, `bottom`) that encloses the
+ * entire stroke. Manual comparisons are used instead of `Math.min`/`Math.max`
+ * with spread arguments to avoid allocating an intermediate array and to
+ * sidestep the engine call-stack limits that spreading large point arrays
+ * into `Math.min`/`Math.max` can hit.
+ *
+ * Once the bounding box is known, each point is re-expressed relative to the
+ * top-left corner (`left`, `top`) so the resulting {@link PathLayer} stores
+ * points in its own local coordinate space, with `x`/`y` on the layer itself
+ * marking where that local space is anchored on the canvas.
+ *
+ * @param {number[][]} points - An array of `[x, y, pressure]` tuples captured
+ *   during a pointer-drawn stroke, in canvas-space coordinates. Must contain
+ *   at least 2 points.
+ * @param {Color} color - The fill color to assign to the resulting path
+ *   layer.
+ * @throws {Error} If `points` contains fewer than 2 points, since a path
+ *   cannot be meaningfully drawn or bounded with fewer points.
+ * @returns {PathLayer} A new path layer with `type: LayerType.Path`, its
+ *   bounding box (`x`, `y`, `width`, `height`), the given `fill` color, and
+ *   `points` translated into the layer's local coordinate space.
+ *
+ * @example
+ * const layer = penPointsToPathLayer(
+ *   [[10, 10, 0.5], [20, 15, 0.6], [15, 25, 0.4]],
+ *   { r: 0, g: 0, b: 0 },
+ * );
+ * // => {
+ * //   type: LayerType.Path,
+ * //   x: 10, y: 10, width: 10, height: 15,
+ * //   fill: { r: 0, g: 0, b: 0 },
+ * //   points: [[0, 0, 0.5], [10, 5, 0.6], [5, 15, 0.4]],
+ * // }
+ */
+export function penPointsToPathLayer(
+  points: number[][],
+  color: Color,
+): PathLayer {
+  if (points.length < 2) {
+    throw new Error("Cannot transform points with less than 2 points");
+  }
+
+  let left = Number.POSITIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+
+  for (const point of points) {
+    const [x, y] = point;
+
+    if (left > x) {
+      left = x;
+    }
+
+    if (top > y) {
+      top = y;
+    }
+
+    if (right < x) {
+      right = x;
+    }
+
+    if (bottom < y) {
+      bottom = y;
+    }
+  }
+
+  return {
+    type: LayerType.Path,
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+    fill: color,
+    points: points.map(([x, y, pressure]) => [x - left, y - top, pressure]),
+  };
 }
