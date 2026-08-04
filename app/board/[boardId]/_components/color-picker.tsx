@@ -19,6 +19,21 @@ const PRESET_COLORS: Color[] = [
   { r: 255, g: 255, b: 255 }, // White
 ];
 
+/**
+ * Human-readable names for each preset color, keyed by CSS string.
+ * Used to provide accessible labels for color swatch buttons.
+ */
+const PRESET_COLOR_NAMES: Record<string, string> = {
+  "#f35223": "Red",
+  "#fff9b1": "Yellow",
+  "#44ca63": "Green",
+  "#278eed": "Blue",
+  "#9b69f5": "Purple",
+  "#fc8e2a": "Orange",
+  "#000000": "Black",
+  "#ffffff": "White",
+};
+
 interface ColorPickerProps {
   /** Callback invoked with the selected color when a swatch is clicked. */
   onChange: (color: Color) => void;
@@ -33,7 +48,12 @@ export function ColorPicker({ onChange }: ColorPickerProps) {
   return (
     <div className="mr-2 flex max-w-41 flex-wrap items-center gap-2 border-r border-neutral-200 pr-2">
       {PRESET_COLORS.map((color) => (
-        <ColorButton key={colorToCss(color)} color={color} onClick={onChange} />
+        <ColorButton
+          key={colorToCss(color)}
+          color={color}
+          name={PRESET_COLOR_NAMES[colorToCss(color)] ?? "Color"}
+          onClick={onChange}
+        />
       ))}
     </div>
   );
@@ -44,6 +64,8 @@ interface ColorButtonProps {
   onClick: (color: Color) => void;
   /** The color this button represents. */
   color: Color;
+  /** Human-readable name for the color, used as the button's aria-label. */
+  name: string;
 }
 
 /**
@@ -52,9 +74,10 @@ interface ColorButtonProps {
  * @param onClick - Called with {@link color} when the button is clicked.
  * @param color - The color displayed by this button.
  */
-function ColorButton({ onClick, color }: ColorButtonProps) {
+function ColorButton({ onClick, color, name }: ColorButtonProps) {
   return (
     <button
+      aria-label={`Select ${name} color`}
       className="flex size-8 items-center justify-center transition hover:opacity-75"
       onClick={() => onClick(color)}
     >

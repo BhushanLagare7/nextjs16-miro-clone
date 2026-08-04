@@ -303,15 +303,19 @@ export function Canvas({ boardId }: CanvasProps) {
    * @param {Point} origin - The canvas-space pointer position where the
    *   press gesture started.
    */
-  const startMultiSelection = useCallback((current: Point, origin: Point) => {
-    if (Math.abs(current.x - origin.x) + Math.abs(current.y - origin.y) > 5) {
-      setCanvasState({
-        mode: CanvasMode.SelectionNet,
-        origin,
-        current,
-      });
-    }
-  }, []);
+  const startMultiSelection = useCallback(
+    (current: Point, origin: Point) => {
+      if (Math.abs(current.x - origin.x) + Math.abs(current.y - origin.y) > 5) {
+        setCanvasState({
+          mode: CanvasMode.SelectionNet,
+          origin,
+          current,
+        });
+        updateSelectionNet(current, origin);
+      }
+    },
+    [updateSelectionNet],
+  );
 
   /**
    * Updates the bounds of the single currently selected layer in Liveblocks
