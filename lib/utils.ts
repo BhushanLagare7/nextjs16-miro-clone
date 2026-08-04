@@ -6,10 +6,11 @@
  * serialization, and SVG path generation from freehand stroke data.
  */
 
+import { LiveMap, LiveObject } from "@liveblocks/client";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import { Camera, Color, Point, Side, XYWH } from "@/types/canvas";
+import { Camera, Color, Layer, Point, Side, XYWH } from "@/types/canvas";
 
 /**
  * A predefined palette of colors used to visually distinguish participants
@@ -165,13 +166,13 @@ export function getSvgPathFromStroke(stroke: number[][]) {
  * that `width` and `height` remain non-negative (the box "flips" if the
  * pointer crosses the opposing edge):
  *
- * - `Side.Left`  — moves the left edge; `x` is clamped to the right edge and
+ * - `Side.Left`   — moves the left edge; `x` is clamped to the right edge and
  *   `width` is the absolute distance between them.
- * - `Side.Right` — moves the right edge; `x` stays at the original left edge
+ * - `Side.Right`  — moves the right edge; `x` stays at the original left edge
  *   and `width` is the absolute distance to `point.x`.
- * - `Side.Top`   — moves the top edge; `y` is clamped to the bottom edge and
+ * - `Side.Top`    — moves the top edge; `y` is clamped to the bottom edge and
  *   `height` is the absolute distance between them.
- * - `Side.Bottom`— moves the bottom edge; `y` stays at the original top edge
+ * - `Side.Bottom` — moves the bottom edge; `y` stays at the original top edge
  *   and `height` is the absolute distance to `point.y`.
  *
  * Corner handles combine two flags (e.g. `Side.Top | Side.Left`) and both
@@ -191,12 +192,20 @@ export function getSvgPathFromStroke(stroke: number[][]) {
  *
  * @example
  * // Drag the bottom-right corner to canvas point (250, 300)
- * resizeBounds({ x: 100, y: 100, width: 100, height: 100 }, Side.Bottom | Side.Right, { x: 250, y: 300 });
+ * resizeBounds(
+ *   { x: 100, y: 100, width: 100, height: 100 },
+ *   Side.Bottom | Side.Right,
+ *   { x: 250, y: 300 }
+ * );
  * // => { x: 100, y: 100, width: 150, height: 200 }
  *
  * @example
  * // Drag the left edge past the right edge (flipping)
- * resizeBounds({ x: 100, y: 100, width: 100, height: 100 }, Side.Left, { x: 250, y: 150 });
+ * resizeBounds(
+ *   { x: 100, y: 100, width: 100, height: 100 },
+ *   Side.Left,
+ *   { x: 250, y: 150 }
+ * );
  * // => { x: 200, y: 100, width: 50, height: 100 }
  */
 export function resizeBounds(bounds: XYWH, corner: Side, point: Point): XYWH {
@@ -228,4 +237,102 @@ export function resizeBounds(bounds: XYWH, corner: Side, point: Point): XYWH {
   }
 
   return result;
+}
+
+/**
+ * Identifies all layers whose axis-aligned bounding boxes intersect with a
+ * rectangular selection region defined by two canvas-space corner points.
+ *
+ * The selection rectangle is normalised from the two diagonal corner points
+ * `a` and `b` so that the function is order-independent (i.e. `a` may be
+ * any corner, not necessarily the top-left). Intersection is tested using the
+ * standard AABB (Axis-Aligned Bounding Box) overlap check: two rectangles
+ * overlap if and only if neither is entirely to the left, right, above, or
+ * below the other.
+ *
+ * Layers backed by a Liveblocks {@link LiveObject} are transparently
+ * deserialised via `toJSON()` before their geometry is read, so the function
+ * works with both plain {@link ReadonlyMap} stores and live Liveblocks
+ * {@link LiveMap} stores without any change to the call-site.
+ *
+ * Layers whose ID is present in `layerIds` but cannot be found in `layers`
+ * (i.e. `layers.get(layerId)` returns `null` or `undefined`) are silently
+ * skipped.
+ *
+ * @param {readonly string[]} layerIds - An ordered list of layer IDs that
+ *   defines the set of layers to test. Only IDs present in this array are
+ *   evaluated; the ordering does not affect the result.
+ * @param {ReadonlyMap<string, Layer> | LiveMap<string, LiveObject<Layer>>} layers -
+ *   A map from layer ID to layer data. Accepts either a plain read-only map
+ *   (e.g. a snapshot) or a live Liveblocks map used during an active
+ *   collaborative session.
+ * @param {Point} a - The first corner of the selection rectangle in
+ *   canvas-space coordinates.
+ * @param {Point} b - The diagonally opposite corner of the selection rectangle
+ *   in canvas-space coordinates.
+ * @returns {string[]} An array of layer IDs whose bounding boxes overlap with
+ *   the selection rectangle. The array preserves the relative order of
+ *   `layerIds` and is empty when no layers intersect.
+ *
+ * @example
+ * // Select all layers that fall within a drag-selection rectangle
+ * const selected = findIntersectingLayersWithRectangle(
+ *   layerIds,
+ *   layers,
+ *   { x: 50,  y: 50  },  // top-left corner of drag selection
+ *   { x: 300, y: 300 },  // bottom-right corner of drag selection
+ * );
+ * // => ["layer-2", "layer-5"]
+ *
+ * @example
+ * // Works regardless of which corner is passed first
+ * findIntersectingLayersWithRectangle(layerIds, layers, { x: 300, y: 300 }, { x: 50, y: 50 });
+ * // => same result as above
+ */
+export function findIntersectingLayersWithRectangle(
+  layerIds: readonly string[],
+  layers: ReadonlyMap<string, Layer> | LiveMap<string, LiveObject<Layer>>,
+  a: Point,
+  b: Point,
+) {
+  // Normalise the two corner points into a well-formed rectangle so that the
+  // caller can pass them in any order (top-left → bottom-right or vice-versa).
+  const rect = {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    width: Math.abs(a.x - b.x),
+    height: Math.abs(a.y - b.y),
+  };
+
+  const ids = [];
+
+  for (const layerId of layerIds) {
+    const layer = layers.get(layerId);
+
+    // Skip layers that are listed in layerIds but are absent from the map
+    // (e.g. they were deleted during the current session).
+    if (layer == null) {
+      continue;
+    }
+
+    // Liveblocks LiveObject instances expose a toJSON() method; plain Layer
+    // objects do not. Deserialise accordingly so geometry is always a POJO.
+    const { x, y, height, width } =
+      "toJSON" in layer && typeof layer.toJSON === "function"
+        ? (layer.toJSON() as Layer)
+        : (layer as Layer);
+
+    // Standard AABB overlap test: the rectangles intersect when neither is
+    // entirely outside the other on either axis.
+    if (
+      rect.x + rect.width > x &&
+      rect.x < x + width &&
+      rect.y + rect.height > y &&
+      rect.y < y + height
+    ) {
+      ids.push(layerId);
+    }
+  }
+
+  return ids;
 }

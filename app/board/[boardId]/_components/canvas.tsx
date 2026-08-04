@@ -23,6 +23,7 @@ import { nanoid } from "nanoid";
 
 import {
   connectionIdToColor,
+  findIntersectingLayersWithRectangle,
   pointerEventToCanvasPoint,
   resizeBounds,
 } from "@/lib/utils";
@@ -42,6 +43,7 @@ import { Info } from "./info";
 import { LayerPreview } from "./layer-preview";
 import { Participants } from "./participants";
 import { SelectionBox } from "./selection-box";
+import { SelectionTools } from "./selection-tools";
 import { Toolbar } from "./toolbar";
 
 /**
@@ -76,7 +78,8 @@ interface CanvasProps {
  * - Integrates with the Liveblocks `useHistory` hook to support collaborative
  *   undo/redo functionality across all room participants.
  * - Exposes pointer and wheel event handlers on the SVG surface to drive
- *   camera movement, cursor presence, and layer insertion.
+ *   camera movement, cursor presence, layer insertion, translation, resizing,
+ *   and marquee (selection-net) multi-selection.
  * - Renders the {@link Info} panel, {@link Participants} list, and
  *   {@link Toolbar} as overlays on top of the SVG canvas surface.
  * - Renders each shared layer via {@link LayerPreview} and all remote
@@ -248,6 +251,69 @@ export function Canvas({ boardId }: CanvasProps) {
   }, []);
 
   /**
+   * Updates the "selection net" (marquee) rectangle while the user drags to
+   * multi-select layers, and refreshes the local participant's selection to
+   * include every layer currently intersecting that rectangle.
+   *
+   * Sets (or keeps) `canvasState.mode` as `CanvasMode.SelectionNet` with the
+   * supplied `origin` and `current` points defining opposite corners of the
+   * marquee rectangle. Uses {@link findIntersectingLayersWithRectangle} against
+   * the current `layerIds` and live layer storage to compute which layer IDs
+   * fall within that rectangle, then applies the result as the local
+   * participant's selection via `setMyPresence`.
+   *
+   * @param {Point} current - The current canvas-space pointer position,
+   *   representing one corner of the selection rectangle.
+   * @param {Point} origin - The canvas-space pointer position where the
+   *   selection gesture started, representing the opposite corner of the
+   *   selection rectangle.
+   */
+  const updateSelectionNet = useMutation(
+    ({ storage, setMyPresence }, current: Point, origin: Point) => {
+      const layers = storage.get("layers");
+      setCanvasState({
+        mode: CanvasMode.SelectionNet,
+        origin,
+        current,
+      });
+
+      const ids = findIntersectingLayersWithRectangle(
+        layerIds ?? [],
+        layers,
+        origin,
+        current,
+      );
+
+      setMyPresence({ selection: ids });
+    },
+    [layerIds],
+  );
+
+  /**
+   * Determines whether the pointer has moved far enough from its initial
+   * "pressing" origin to begin a multi-selection (marquee) gesture and, if
+   * so, transitions the canvas into `CanvasMode.SelectionNet`.
+   *
+   * Uses a Manhattan distance threshold (sum of absolute x/y deltas) of 5
+   * pixels between `origin` and `current` to avoid accidentally starting a
+   * selection net on a simple click. Below the threshold, the canvas remains
+   * in its current mode (typically `CanvasMode.Pressing`).
+   *
+   * @param {Point} current - The current canvas-space pointer position.
+   * @param {Point} origin - The canvas-space pointer position where the
+   *   press gesture started.
+   */
+  const startMultiSelection = useCallback((current: Point, origin: Point) => {
+    if (Math.abs(current.x - origin.x) + Math.abs(current.y - origin.y) > 5) {
+      setCanvasState({
+        mode: CanvasMode.SelectionNet,
+        origin,
+        current,
+      });
+    }
+  }, []);
+
+  /**
    * Updates the bounds of the single currently selected layer in Liveblocks
    * shared storage based on the active resize handle corner and the current
    * pointer position.
@@ -328,10 +394,14 @@ export function Canvas({ boardId }: CanvasProps) {
    * client coordinates to canvas-space using the current camera offset, then
    * broadcasts the updated position to other participants via `setMyPresence`.
    *
-   * Additionally drives active interactions:
-   * - In `CanvasMode.Translating`, delegates to {@link translateSelectedLayers}
+   * Additionally drives active interactions based on `canvasState.mode`:
+   * - `CanvasMode.Pressing`: Delegates to {@link startMultiSelection} to
+   *   determine whether a marquee selection gesture should begin.
+   * - `CanvasMode.SelectionNet`: Delegates to {@link updateSelectionNet} to
+   *   update the marquee rectangle and recompute the intersecting selection.
+   * - `CanvasMode.Translating`: Delegates to {@link translateSelectedLayers}
    *   to move the selected layers.
-   * - In `CanvasMode.Resizing`, delegates to {@link resizeSelectedLayer} to
+   * - `CanvasMode.Resizing`: Delegates to {@link resizeSelectedLayer} to
    *   update the selected layer's bounds.
    *
    * @param {React.PointerEvent} e - The pointer move event fired on the SVG
@@ -343,7 +413,11 @@ export function Canvas({ boardId }: CanvasProps) {
 
       const current = pointerEventToCanvasPoint(e, camera);
 
-      if (canvasState.mode === CanvasMode.Translating) {
+      if (canvasState.mode === CanvasMode.Pressing) {
+        startMultiSelection(current, canvasState.origin);
+      } else if (canvasState.mode === CanvasMode.SelectionNet) {
+        updateSelectionNet(current, canvasState.origin);
+      } else if (canvasState.mode === CanvasMode.Translating) {
         translateSelectedLayers(current);
       } else if (canvasState.mode === CanvasMode.Resizing) {
         resizeSelectedLayer(current);
@@ -351,7 +425,14 @@ export function Canvas({ boardId }: CanvasProps) {
 
       setMyPresence({ cursor: current });
     },
-    [camera, canvasState, resizeSelectedLayer, translateSelectedLayers],
+    [
+      camera,
+      canvasState,
+      resizeSelectedLayer,
+      translateSelectedLayers,
+      startMultiSelection,
+      updateSelectionNet,
+    ],
   );
 
   /**
@@ -399,12 +480,16 @@ export function Canvas({ boardId }: CanvasProps) {
    *   selection via {@link unselectLayers} and resets the canvas to idle mode.
    * - `CanvasMode.Inserting`: Commits a new layer at the pointer position by
    *   calling {@link insertLayer} with the active layer type.
-   * - Any other mode: Resets the canvas to idle mode without further action.
+   * - Any other mode (e.g. `SelectionNet`, `Translating`, `Resizing`): Resets
+   *   the canvas to idle mode without further action, finalizing whatever
+   *   selection/translation/resize was already applied incrementally during
+   *   pointer move.
    *
    * In all cases, resumes the shared history so the completed operation is
    * recorded as a single undoable step.
    *
-   * @param {{}} _ - Unused mutation context (destructured and ignored).
+   * @param {Record<string, never>} _ - Unused mutation context (destructured
+   *   and ignored).
    * @param {React.PointerEvent} e - The pointer up event fired on the SVG
    *   element.
    */
@@ -521,9 +606,12 @@ export function Canvas({ boardId }: CanvasProps) {
         undo={history.undo}
       />
 
+      <SelectionTools camera={camera} setLastUsedColor={setLastUsedColor} />
+
       {/*
        * Full-screen SVG surface. Pointer and wheel events are handled here
-       * to drive camera panning, cursor presence, and layer insertion.
+       * to drive camera panning, cursor presence, layer insertion,
+       * translation, resizing, and marquee multi-selection.
        */}
       <svg
         className="h-screen w-screen"
@@ -558,6 +646,22 @@ export function Canvas({ boardId }: CanvasProps) {
            * resize handle interaction begins.
            */}
           <SelectionBox onResizeHandlePointerDown={onResizeHandlePointerDown} />
+
+          {/*
+           * Renders the marquee "selection net" rectangle while the user is
+           * actively dragging a multi-selection gesture (`CanvasMode.SelectionNet`).
+           * The rectangle spans from `canvasState.origin` to `canvasState.current`.
+           */}
+          {canvasState.mode === CanvasMode.SelectionNet &&
+            canvasState.current != null && (
+              <rect
+                className="fill-blue-500/5 stroke-blue-500 stroke-1"
+                height={Math.abs(canvasState.origin.y - canvasState.current.y)}
+                width={Math.abs(canvasState.origin.x - canvasState.current.x)}
+                x={Math.min(canvasState.origin.x, canvasState.current.x)}
+                y={Math.min(canvasState.origin.y, canvasState.current.y)}
+              />
+            )}
 
           {/* Render remote participant cursors and pencil drafts */}
           <CursorsPresence />
