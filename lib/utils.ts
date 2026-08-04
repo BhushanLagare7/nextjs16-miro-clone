@@ -348,14 +348,15 @@ export function findIntersectingLayersWithRectangle(
 
 /**
  * Determines whether black or white text will have the best readability
- * against a given background {@link Color} by computing its perceived
- * brightness using the ITU-R BT.601 luma coefficients
- * (`0.299 R + 0.587 G + 0.114 B`).
+ * against a given background {@link Color} by computing the WCAG 2.x
+ * relative luminance and comparing contrast ratios against both candidates.
  *
- * A luminance threshold of 182 (on a 0–255 scale) is used as the decision
- * boundary: backgrounds brighter than this threshold receive black text,
- * while darker backgrounds receive white text. This provides a
- * high-contrast pairing that satisfies common accessibility guidelines.
+ * Each sRGB channel is first linearized (inverse gamma), then combined
+ * using the ITU-R BT.709 coefficients (`0.2126 R + 0.7152 G + 0.0722 B`)
+ * to produce relative luminance. The contrast ratio formula
+ * `(L_lighter + 0.05) / (L_darker + 0.05)` is then evaluated for both
+ * black (`L = 0`) and white (`L = 1`), and the text color yielding the
+ * higher ratio is returned.
  *
  * Used wherever user-chosen or layer fill colors need legible overlaid text,
  * such as sticky-note labels or color-picker previews.
@@ -372,13 +373,27 @@ export function findIntersectingLayersWithRectangle(
  * getContrastingTextColor({ r: 0, g: 0, b: 0 })       // => "white"
  *
  * @example
- * // Mid-tone background (luminance ≈ 149) => white text
+ * // Mid-tone background — WCAG luminance ≈ 0.28 => white text
  * getContrastingTextColor({ r: 100, g: 150, b: 200 })  // => "white"
  */
 export function getContrastingTextColor(color: Color): "black" | "white" {
-  const luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+  // sRGB → linear channel conversion per WCAG 2.x
+  const toLinear = (c: number): number => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
 
-  return luminance > 182 ? "black" : "white";
+  // Relative luminance (ITU-R BT.709)
+  const L =
+    0.2126 * toLinear(color.r) +
+    0.7152 * toLinear(color.g) +
+    0.0722 * toLinear(color.b);
+
+  // Contrast ratio: (lighter + 0.05) / (darker + 0.05)
+  const contrastWithBlack = (L + 0.05) / 0.05;
+  const contrastWithWhite = 1.05 / (L + 0.05);
+
+  return contrastWithWhite > contrastWithBlack ? "white" : "black";
 }
 
 /**

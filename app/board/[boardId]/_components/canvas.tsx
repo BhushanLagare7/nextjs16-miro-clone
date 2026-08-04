@@ -608,6 +608,7 @@ export function Canvas({ boardId }: CanvasProps) {
       }
 
       if (canvasState.mode === CanvasMode.Pencil) {
+        e.currentTarget.setPointerCapture(e.pointerId);
         startDrawing(point, e.pressure);
         return;
       }
@@ -670,6 +671,26 @@ export function Canvas({ boardId }: CanvasProps) {
       unselectLayers,
       insertPath,
     ],
+  );
+
+  /**
+   * Handles pointer cancel events on the SVG canvas. Clears any in-progress
+   * pencil draft from presence so a mid-stroke browser or OS interruption
+   * (e.g. touch gesture, context menu) does not leave orphaned draft state.
+   */
+  const onPointerCancel = useMutation(
+    ({ setMyPresence }, e: React.PointerEvent) => {
+      if (canvasState.mode === CanvasMode.Pencil) {
+        setMyPresence({ pencilDraft: null });
+
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          // Pointer capture may already have been released.
+        }
+      }
+    },
+    [canvasState.mode],
   );
 
   /**
@@ -752,16 +773,28 @@ export function Canvas({ boardId }: CanvasProps) {
    */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      switch (e.key) {
+      const target = e.target as HTMLElement;
+
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
         case "z": {
           if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
             if (e.shiftKey) {
               history.redo();
             } else {
               history.undo();
             }
-            break;
           }
+          break;
         }
       }
     }
@@ -800,6 +833,7 @@ export function Canvas({ boardId }: CanvasProps) {
        */}
       <svg
         className="h-screen w-screen"
+        onPointerCancel={onPointerCancel}
         onPointerDown={onPointerDown}
         onPointerLeave={onPointerLeave}
         onPointerMove={onPointerMove}
