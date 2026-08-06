@@ -3,12 +3,12 @@
   <h1>Real-Time Collaborative Whiteboard</h1>
   <p>A high-performance, real-time interactive whiteboard application inspired by Miro, built with Next.js 16, React 19, Convex, Liveblocks, Clerk, and Stripe.</p>
 
-  [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-  [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-  [![Convex](https://img.shields.io/badge/Convex-Backend-FF6B6B?style=flat-square)](https://convex.dev/)
-  [![Liveblocks](https://img.shields.io/badge/Liveblocks-Realtime-000000?style=flat-square)](https://liveblocks.io/)
-  [![Stripe](https://img.shields.io/badge/Stripe-Payments-6772E5?style=flat-square&logo=stripe)](https://stripe.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Convex](https://img.shields.io/badge/Convex-Backend-FF6B6B?style=flat-square)](https://convex.dev/)
+[![Liveblocks](https://img.shields.io/badge/Liveblocks-Realtime-000000?style=flat-square)](https://liveblocks.io/)
+[![Stripe](https://img.shields.io/badge/Stripe-Payments-6772E5?style=flat-square&logo=stripe)](https://stripe.com/)
 </div>
 
 ---
@@ -37,17 +37,17 @@ This repository features a full-stack, enterprise-grade real-time whiteboard can
 
 ## Tech Stack
 
-| Domain | Technology |
-| :--- | :--- |
-| **Framework** | Next.js 16 (App Router), React 19 |
-| **Language** | TypeScript |
-| **Real-time State** | Liveblocks (`@liveblocks/client`, `@liveblocks/react`) |
-| **Backend & DB** | Convex (`convex/` reactive backend) |
-| **Authentication** | Clerk (`@clerk/nextjs`) |
-| **Payments** | Stripe API & Webhooks |
-| **Styling & UI** | Tailwind CSS v4, Radix UI, Shadcn UI, Lucide Icons |
-| **State Management** | Zustand, `usehooks-ts` |
-| **Freehand Engine** | `perfect-freehand` |
+| Domain               | Technology                                             |
+| :------------------- | :----------------------------------------------------- |
+| **Framework**        | Next.js 16 (App Router), React 19                      |
+| **Language**         | TypeScript                                             |
+| **Real-time State**  | Liveblocks (`@liveblocks/client`, `@liveblocks/react`) |
+| **Backend & DB**     | Convex (`convex/` reactive backend)                    |
+| **Authentication**   | Clerk (`@clerk/nextjs`)                                |
+| **Payments**         | Stripe API & Webhooks                                  |
+| **Styling & UI**     | Tailwind CSS v4, Radix UI, Shadcn UI, Lucide Icons     |
+| **State Management** | Zustand, `usehooks-ts`                                 |
+| **Freehand Engine**  | `perfect-freehand`                                     |
 
 ---
 
@@ -95,7 +95,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 ### Prerequisites
 
-Ensure you have Node.js (v20+ recommended) and `npm` installed.
+Ensure you have Node.js (v20.9+ required) and `npm` installed.
 
 ### Installation
 
@@ -110,11 +110,13 @@ npm install
 ### Local Development
 
 1. **Start the Next.js frontend server:**
+
    ```bash
    npm run dev
    ```
 
 2. **Start the Convex backend sync engine (in a separate terminal):**
+
    ```bash
    npx convex dev
    ```
@@ -133,13 +135,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to view the 
 
 ## Available Scripts
 
-| Command | Description |
-| :--- | :--- |
-| `npm run dev` | Launches Next.js local development server |
-| `npx convex dev` | Connects local client to reactive Convex backend |
-| `npm run build` | Builds optimized Next.js production bundle |
-| `npm run start` | Starts Next.js production server |
-| `npm run lint` | Runs ESLint checks across the codebase |
-| `npm run lint:fix` | Automatically fixes code linting errors |
-| `npm run stripe:listen` | Forwards Stripe webhooks to local Convex server |
+| Command                  | Description                                          |
+| :----------------------- | :--------------------------------------------------- |
+| `npm run dev`            | Launches Next.js local development server            |
+| `npx convex dev`         | Connects local client to reactive Convex backend     |
+| `npm run build`          | Builds optimized Next.js production bundle           |
+| `npm run start`          | Starts Next.js production server                     |
+| `npm run lint`           | Runs ESLint checks across the codebase               |
+| `npm run lint:fix`       | Automatically fixes code linting errors              |
+| `npm run stripe:listen`  | Forwards Stripe webhooks to configured Convex deployment |
 | `npm run stripe:trigger` | Triggers a simulated Stripe checkout completed event |

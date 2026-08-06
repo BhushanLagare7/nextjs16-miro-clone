@@ -13,9 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1.0,
+      changeFrequency: SITE_CONFIG.sitemap.changeFrequency,
+      priority: SITE_CONFIG.sitemap.priority,
       images: [`${baseUrl}${SITE_CONFIG.ogImage}`],
     },
   ];

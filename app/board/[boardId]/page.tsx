@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Room } from "@/components/room";
+import { SITE_CONFIG } from "@/lib/constants/site";
 
 import { Canvas } from "./_components/canvas";
 import { BoardIdPageSkeleton } from "./_components/loading";
@@ -15,8 +16,8 @@ export async function generateMetadata({
   const { boardId } = await params;
 
   return {
-    title: `Board ${boardId}`,
-    description: `Collaborative canvas board on NexCanvas`,
+    title: `${SITE_CONFIG.boardMetadata.titlePrefix} ${boardId}`,
+    description: SITE_CONFIG.boardMetadata.description,
     alternates: {
       canonical: `/board/${boardId}`,
     },

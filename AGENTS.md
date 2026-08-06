@@ -25,35 +25,46 @@ This repository is a real-time collaborative whiteboard application (Miro clone)
 ## Setup & Development Commands
 
 ### 1. Installation
+
 ```bash
 npm install
 ```
 
 ### 2. Development Workflow
+
 Start the Next.js frontend development server:
+
 ```bash
 npm run dev
 ```
+
 Start the Convex backend sync service (in a separate terminal):
+
 ```bash
 npx convex dev
 ```
+
 Listen for local Stripe webhook events (if testing payments):
+
 ```bash
 npm run stripe:listen
 ```
+
 Trigger a simulated Stripe checkout completed event:
+
 ```bash
 npm run stripe:trigger
 ```
 
 ### 3. Production Build & Execution
+
 ```bash
 npm run build
 npm run start
 ```
 
 ### 4. Linting & Type Checking
+
 ```bash
 npm run lint         # Run ESLint check
 npm run lint:fix     # Automatically fix lint issues
@@ -65,12 +76,14 @@ npx tsc --noEmit     # TypeScript type checking
 ## Code Quality & Coding Standards
 
 ### Core Rules & Magic Values
+
 - **No Magic Numbers:** Replace unexplained numeric literals (e.g., canvas dimensions, zoom levels, timeouts, retry counts, HTTP status codes) with named `const` variables or enums.
 - **No Magic Strings:** Extract hardcoded string literals (e.g., socket event names, localStorage keys, Liveblocks presence states, Convex table names, role names, tool types) into centralized constants/enums.
 - **Exceptions:** Standard initializers like `0`, `1`, or `-1` in loops/arrays/math are allowed. If a literal's meaning is 100% obvious from the immediate context (e.g., `flex-1`), extraction is skipped.
 - **Strict Typing:** All extracted constants must have strict TypeScript types. Use `as const` for objects/arrays to preserve literal types. Document constants clearly using JSDoc.
 
 ### Naming Conventions & Structure
+
 1. **Function Declarations:**
    - Convert ALL arrow functions (`const A = () => {...}`) to standard function declarations (`function A() {...}`).
    - Applies to default exports, named exports, React components, and utility functions.
@@ -79,8 +92,8 @@ npx tsc --noEmit     # TypeScript type checking
 3. **Path-Based Component & Layout Naming:**
    - Name Page and Layout components based on their file path for global uniqueness.
    - Ignore route groups wrapped in parentheses `(...)` and convert remaining path segments to PascalCase.
-   - *Example:* `app/(dashboard)/page.tsx` -> `DashboardPage`
-   - *Example:* `app/board/[boardId]/page.tsx` -> `BoardBoardIdPage`
+   - _Example:_ `app/(dashboard)/page.tsx` -> `DashboardPage`
+   - _Example:_ `app/board/[boardId]/page.tsx` -> `BoardBoardIdPage`
 4. **Skeleton Component Naming:**
    - Any component designed as a Suspense fallback (skeleton) MUST have `Skeleton` appended to the end of its name (e.g., `BoardBoardIdPageSkeleton`).
 
@@ -91,6 +104,7 @@ npx tsc --noEmit     # TypeScript type checking
 All required environment variables should be validated using `requireEnvVar` from `lib/utils.ts`.
 
 Key variables expected in `.env.local`:
+
 - `NEXT_PUBLIC_CONVEX_URL`: Convex deployment URL
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Clerk publishable key
 - `CLERK_SECRET_KEY`: Clerk secret key

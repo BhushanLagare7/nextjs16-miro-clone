@@ -11,13 +11,10 @@ export default function robots(): MetadataRoute.Robots {
   const baseUrl = SITE_CONFIG.url;
 
   return {
-    rules: [
-      {
-        userAgent: "*",
-        allow: "/",
-        disallow: ["/api/"],
-      },
-    ],
+    rules: SITE_CONFIG.robots.rules.map((rule) => ({
+      ...rule,
+      disallow: [...rule.disallow],
+    })),
     sitemap: `${baseUrl}/sitemap.xml`,
     host: baseUrl,
   };
