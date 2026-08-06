@@ -1,3 +1,11 @@
+/**
+ * @file index.tsx
+ * @description A card component representing a single board in the board
+ * grid. Displays a thumbnail, hover overlay, context menu, and footer
+ * with author info and a favorite toggle. Includes a skeleton sub-component
+ * for loading states.
+ */
+
 "use client";
 
 import Image from "next/image";
@@ -18,7 +26,7 @@ import { Footer } from "./footer";
 import { Overlay } from "./overlay";
 
 /**
- * Props for the BoardCard component.
+ * Props for the {@link BoardCard} component.
  *
  * @interface BoardCardProps
  * @property {Id<"boards">} id - The unique Convex document ID of the board.
@@ -47,20 +55,26 @@ interface BoardCardProps {
  * ### Features
  * - **Navigation** – Wraps the card in a `<Link>` that navigates to `/board/:id`.
  * - **Preview image** – Fills the top section of the card with the board's thumbnail.
- * - **Hover overlay** – A semi-transparent overlay appears on hover via the `Overlay` component.
- * - **Context actions** – A `MoreHorizontal` button reveals an `Actions` menu (rename, delete, etc.)
- *   on hover.
- * - **Footer** – Displays the board title, author, creation time, and a favorite toggle.
+ * - **Hover overlay** – A semi-transparent overlay appears on hover via the {@link Overlay} component.
+ * - **Context actions** – A `MoreHorizontal` button reveals an {@link Actions} menu (rename,
+ *   delete, etc.) on hover.
+ * - **Footer** – Displays the board title, author, creation time, and a favorite toggle
+ *   via the {@link Footer} component.
  * - **Favorite toggle** – Calls `api.board.favorite` or `api.board.unfavorite` depending on
  *   the current `isFavorite` state. Toast notifications communicate success or failure.
+ *
+ * ### Pending state
+ * - The footer's favorite button is disabled while either the `favorite` or `unfavorite`
+ *   mutation is in-flight, preventing duplicate requests.
  *
  * ### Static sub-component
  * `BoardCard.Skeleton` renders a placeholder skeleton for use during loading states.
  *
  * @param {BoardCardProps} props - The props for the component.
- * @returns {JSX.Element} A linked, interactive board card.
+ * @returns {React.JSX.Element} A linked, interactive board card.
  *
  * @example
+ * ```tsx
  * <BoardCard
  *   id="boards_abc123"
  *   title="Q3 Roadmap"
@@ -71,6 +85,7 @@ interface BoardCardProps {
  *   orgId="org_456"
  *   isFavorite={true}
  * />
+ * ```
  */
 export function BoardCard({
   id,
@@ -118,8 +133,8 @@ export function BoardCard({
   /**
    * Toggles the board's favorite status for the current user.
    *
-   * - If the board is currently favorited, calls `onUnfavorite`.
-   * - If it is not favorited, calls `onFavorite`.
+   * - If the board is currently favorited, calls `onUnfavorite` with the board `id`.
+   * - If it is not favorited, calls `onFavorite` with the board `id` and `orgId`.
    *
    * Displays an error toast if either mutation fails.
    *
@@ -133,8 +148,8 @@ export function BoardCard({
     }
   };
 
-  /* Clicking anywhere on the card navigates to the board */
   return (
+    /* Clicking anywhere on the card navigates to the board's canvas page */
     <Link href={`/board/${id}`}>
       <div className="group flex aspect-100/127 flex-col justify-between overflow-hidden rounded-lg border">
         {/* Card image area — fills available space, shows overlay and actions on hover */}
@@ -147,7 +162,7 @@ export function BoardCard({
 
           {/*
            * Context menu trigger — absolutely positioned top-right.
-           * Hidden by default, revealed on group hover.
+           * Hidden by default (`opacity-0`), revealed on group hover.
            * Clicking it opens the Actions popover without triggering navigation.
            */}
           <Actions id={id} side="right" title={title}>
@@ -159,7 +174,8 @@ export function BoardCard({
 
         {/*
          * Card footer — renders title, author, creation time, and favorite toggle.
-         * Disabled while either favorite/unfavorite mutation is pending.
+         * Disabled while either favorite/unfavorite mutation is pending to
+         * prevent duplicate requests.
          */}
         <Footer
           authorLabel={authorLabel}
@@ -176,16 +192,18 @@ export function BoardCard({
 
 /**
  * `BoardCard.Skeleton` renders a placeholder skeleton card that matches
- * the aspect ratio of a real `BoardCard`.
+ * the aspect ratio of a real {@link BoardCard}.
  *
  * Used by `BoardList` during the loading state to preserve grid layout
  * before real data arrives.
  *
- * @returns {JSX.Element} A skeleton placeholder with the board card's dimensions.
+ * @returns {React.JSX.Element} A skeleton placeholder with the board card's dimensions.
  *
  * @example
+ * ```tsx
  * // Rendered in the loading state of BoardList
  * <BoardCard.Skeleton />
+ * ```
  */
 BoardCard.Skeleton = function BoardCardSkeleton() {
   return (

@@ -10,6 +10,9 @@
 
 import type * as board from "../board.js";
 import type * as boards from "../boards.js";
+import type * as http from "../http.js";
+import type * as stripe from "../stripe.js";
+import type * as subscriptions from "../subscriptions.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +23,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   board: typeof board;
   boards: typeof boards;
+  http: typeof http;
+  stripe: typeof stripe;
+  subscriptions: typeof subscriptions;
 }>;
 
 /**
