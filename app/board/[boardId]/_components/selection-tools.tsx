@@ -82,7 +82,7 @@ interface SelectionToolsProps {
  * />
  */
 export const SelectionTools = memo(
-  ({ camera, setLastUsedColor }: SelectionToolsProps) => {
+  function SelectionTools({ camera, setLastUsedColor }: SelectionToolsProps) {
     /** The current user's array of selected layer IDs from Liveblocks presence. */
     const selection = useSelf((me) => me.presence.selection);
 

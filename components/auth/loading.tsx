@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-export function Loading() {
+export function AuthLoadingSkeleton() {
   return (
     <div className="flex min-h-svh w-full flex-col items-center justify-center">
       <Image

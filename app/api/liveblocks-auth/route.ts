@@ -4,20 +4,21 @@ import { ConvexHttpClient } from "convex/browser";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { requireEnvVar } from "@/lib/utils";
 
 /**
  * Convex HTTP client used to query board data.
  * Instantiated once at module scope so it can be reused across
  * invocations within the same serverless runtime (warm starts).
  */
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+const convex = new ConvexHttpClient(requireEnvVar("NEXT_PUBLIC_CONVEX_URL"));
 
 /**
  * Liveblocks server-side client used to authorize collaborative
  * room sessions. Instantiated once at module scope for reuse.
  */
 const liveblocks = new Liveblocks({
-  secret: process.env.LIVEBLOCKS_SECRET_KEY!,
+  secret: requireEnvVar("LIVEBLOCKS_SECRET_KEY"),
 });
 
 /**

@@ -53,7 +53,7 @@ import { RenameModal } from "@/components/modals/rename-modal";
  * @returns {JSX.Element | null} The mounted modal components, or `null`
  * before the first client-side render to prevent hydration mismatches.
  */
-export const ModalProvider = () => {
+export function ModalProvider() {
   /**
    * Tracks whether the component has completed its first client-side render.
    * Initialized to `false` on both the server and client; set to `true`

@@ -3,6 +3,8 @@
 import { v } from "convex/values";
 import Stripe from "stripe";
 
+import { requireEnvVar } from "@/lib/utils";
+
 import { internal } from "./_generated/api";
 import { action, ActionCtx, internalAction } from "./_generated/server";
 import {
@@ -13,23 +15,6 @@ import {
   STRIPE_RECURRING_INTERVAL,
   STRIPE_UNIT_AMOUNT,
 } from "./constants";
-
-/**
- * Reads a required environment variable, throwing if it is not set.
- *
- * @param name - The name of the environment variable to read.
- * @returns The environment variable's value.
- * @throws {Error} If the environment variable is not set.
- */
-function requireEnvVar(name: string): string {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} is not set`);
-  }
-
-  return value;
-}
 
 const url = requireEnvVar("NEXT_PUBLIC_APP_URL");
 const stripeSecretKey = requireEnvVar("STRIPE_API_KEY");

@@ -80,7 +80,7 @@ interface LayerPreviewProps {
  * />
  */
 export const LayerPreview = memo(
-  ({ id, onLayerPointerDown, selectionColor }: LayerPreviewProps) => {
+  function LayerPreview({ id, onLayerPointerDown, selectionColor }: LayerPreviewProps) {
     /**
      * The layer object retrieved from Liveblocks shared storage.
      * Will be `null` or `undefined` if the layer has been removed.

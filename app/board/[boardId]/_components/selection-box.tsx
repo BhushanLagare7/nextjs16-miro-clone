@@ -246,7 +246,7 @@ interface ResizeHandleProps {
  * @internal Not exported; use {@link SelectionBox} instead.
  */
 const ResizeHandle = memo(
-  ({ bounds, cursor, side, onPointerDown }: ResizeHandleProps) => {
+  function ResizeHandle({ bounds, cursor, side, onPointerDown }: ResizeHandleProps) {
     /**
      * Look up the static config for this handle.
      * Returns null (renders nothing) for unrecognised side values –
@@ -333,7 +333,7 @@ ResizeHandle.displayName = "ResizeHandle";
  * ```
  */
 export const SelectionBox = memo(
-  ({ onResizeHandlePointerDown }: SelectionBoxProps) => {
+  function SelectionBox({ onResizeHandlePointerDown }: SelectionBoxProps) {
     /**
      * The ID of the single selected layer, or `null` when zero or more
      * than one layer is selected. Used to gate the resize-handle logic.
