@@ -63,7 +63,7 @@ interface CursorProps {
  * // Rendered automatically by CursorsPresence for each connected participant
  * <Cursor connectionId={42} />
  */
-export const Cursor = memo(({ connectionId }: CursorProps) => {
+export const Cursor = memo(function Cursor({ connectionId }: CursorProps) {
   /**
    * The remote participant's user info object (e.g. name, avatar), derived
    * from their Liveblocks authentication metadata.

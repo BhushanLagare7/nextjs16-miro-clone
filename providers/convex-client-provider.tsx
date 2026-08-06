@@ -11,18 +11,16 @@ import {
 } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 
-import { Loading } from "@/components/auth/loading";
+import { AuthLoadingSkeleton } from "@/components/auth/loading";
 
-/**
- * Ensure the Convex deployment URL is available before the app boots.
- * This variable must be exposed to the client, so it is prefixed with
- * `NEXT_PUBLIC_` and should be defined in your `.env.local` file.
- *
- * Failing fast here (at module load time) prevents confusing runtime
- * errors later when Convex tries to connect with an undefined URL.
- */
-if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
-  throw new Error("Missing NEXT_PUBLIC_CONVEX_URL in your .env file");
+interface ConvexClientProviderProps {
+  children: ReactNode;
+}
+
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+
+if (!convexUrl) {
+  throw new Error("NEXT_PUBLIC_CONVEX_URL is not set in environment variables");
 }
 
 /**
@@ -31,7 +29,7 @@ if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
  * Because this file is a module, `convex` is created once and reused
  * across re-renders instead of being re-instantiated on every render.
  */
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+const convex = new ConvexReactClient(convexUrl);
 
 /**
  * ConvexClientProvider
@@ -64,7 +62,7 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL);
  * }
  * ```
  */
-export function ConvexClientProvider({ children }: { children: ReactNode }) {
+export function ConvexClientProvider({ children }: ConvexClientProviderProps) {
   return (
     // ClerkProvider must wrap ConvexProviderWithClerk because Convex
     // relies on Clerk's `useAuth` hook to retrieve the current session
@@ -84,7 +82,7 @@ export function ConvexClientProvider({ children }: { children: ReactNode }) {
         </Unauthenticated>
         {/* Loading is shown while the user is being authenticated. */}
         <AuthLoading>
-          <Loading />
+          <AuthLoadingSkeleton />
         </AuthLoading>
       </ConvexProviderWithClerk>
     </ClerkProvider>

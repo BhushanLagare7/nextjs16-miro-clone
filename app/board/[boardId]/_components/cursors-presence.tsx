@@ -108,7 +108,7 @@ function Drafts() {
  * // Used inside the canvas SVG transform group
  * <CursorsPresence />
  */
-export const CursorsPresence = memo(() => {
+export const CursorsPresence = memo(function CursorsPresence() {
   return (
     <>
       <Drafts />
