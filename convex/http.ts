@@ -14,6 +14,12 @@ import { httpRouter } from "convex/server";
 
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import {
+  HTTP_STATUS_BAD_REQUEST,
+  HTTP_STATUS_INTERNAL_SERVER_ERROR,
+  HTTP_STATUS_OK,
+  STRIPE_WEBHOOK_PATH,
+} from "./constants";
 
 /**
  * The Convex HTTP router instance.
@@ -48,7 +54,7 @@ const http = httpRouter();
  *  - `500` – Webhook signature verification failed or processing error.
  */
 http.route({
-  path: "/stripe",
+  path: STRIPE_WEBHOOK_PATH,
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     /** The Stripe-generated signature used to verify the webhook payload. */
@@ -56,7 +62,7 @@ http.route({
 
     /* Reject requests that do not include a Stripe signature header */
     if (!signature) {
-      return new Response(null, { status: 400 });
+      return new Response(null, { status: HTTP_STATUS_BAD_REQUEST });
     }
 
     /**
@@ -71,10 +77,10 @@ http.route({
 
     if (result.success) {
       /* Acknowledge successful receipt of the webhook event */
-      return new Response(null, { status: 200 });
+      return new Response(null, { status: HTTP_STATUS_OK });
     } else {
       /* Signal failure to Stripe so it can retry the webhook delivery */
-      return new Response("Webhook verification failed", { status: 500 });
+      return new Response("Webhook verification failed", { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
     }
   }),
 });

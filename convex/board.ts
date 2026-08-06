@@ -4,6 +4,13 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
+import {
+  BOARD_LIMIT_ERROR,
+  BOARD_PLACEHOLDER_IMAGES,
+  BOARD_TITLE_MAX_LENGTH,
+  DEFAULT_AUTHOR_NAME,
+  ORG_BOARD_LIMIT,
+} from "./constants";
 
 /**
  * Convex backend functions for managing `boards` and their per-user
@@ -14,36 +21,14 @@ import { mutation, query } from "./_generated/server";
  */
 
 /**
- * Maximum number of boards a non-subscribed organization is allowed to
- * have. Organizations with an active subscription are exempt from this
- * limit.
- */
-const ORG_BOARD_LIMIT = 2;
-
-/**
- * Pool of placeholder cover images assigned to newly created boards.
- * A random entry is chosen each time a board is created.
- */
-const images = [
-  "/placeholders/1.svg",
-  "/placeholders/2.svg",
-  "/placeholders/3.svg",
-  "/placeholders/4.svg",
-  "/placeholders/5.svg",
-  "/placeholders/6.svg",
-  "/placeholders/7.svg",
-  "/placeholders/8.svg",
-  "/placeholders/9.svg",
-  "/placeholders/10.svg",
-];
-
-/**
- * Picks a random placeholder cover image from the `images` pool.
+ * Picks a random placeholder cover image from the `BOARD_PLACEHOLDER_IMAGES` pool.
  *
  * @returns A randomly selected image path.
  */
 function getRandomImage(): string {
-  return images[Math.floor(Math.random() * images.length)];
+  return BOARD_PLACEHOLDER_IMAGES[
+    Math.floor(Math.random() * BOARD_PLACEHOLDER_IMAGES.length)
+  ];
 }
 
 /**
@@ -139,14 +124,14 @@ export const create = mutation({
     ]);
 
     if (!isSubscribed && existingBoards.length >= ORG_BOARD_LIMIT) {
-      throw new Error("BOARD_LIMIT");
+      throw new Error(BOARD_LIMIT_ERROR);
     }
 
     const board = await ctx.db.insert("boards", {
       title: args.title,
       orgId: args.orgId,
       authorId: identity.subject,
-      authorName: identity.name ?? identity.email ?? "Anonymous",
+      authorName: identity.name ?? identity.email ?? DEFAULT_AUTHOR_NAME,
       imageUrl: getRandomImage(),
     });
 
@@ -184,11 +169,11 @@ export const remove = mutation({
  * Updates a board's title after validation.
  *
  * Note: the title is trimmed only for the purpose of validation (must be
- * non-empty and at most 60 characters); the original, untrimmed value
+ * non-empty and at most `BOARD_TITLE_MAX_LENGTH` characters); the original, untrimmed value
  * supplied by the caller is what gets persisted.
  *
  * @throws {Error} If the caller is not authenticated, the trimmed title is
- * empty, or the trimmed title exceeds 60 characters.
+ * empty, or the trimmed title exceeds `BOARD_TITLE_MAX_LENGTH` characters.
  */
 export const update = mutation({
   args: { id: v.id("boards"), title: v.string() },
@@ -201,8 +186,8 @@ export const update = mutation({
       throw new Error("Title is required");
     }
 
-    if (title.length > 60) {
-      throw new Error("Title cannot be longer than 60 characters");
+    if (title.length > BOARD_TITLE_MAX_LENGTH) {
+      throw new Error(`Title cannot be longer than ${BOARD_TITLE_MAX_LENGTH} characters`);
     }
 
     const board = await ctx.db.patch(args.id, {

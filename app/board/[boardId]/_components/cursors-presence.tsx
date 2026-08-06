@@ -14,6 +14,7 @@ import { useOthersConnectionIds, useOthersMapped } from "@liveblocks/react";
 
 import { colorToCss } from "@/lib/utils";
 
+import { DEFAULT_FILL_COLOR_CSS } from "./constants";
 import { Cursor } from "./cursor";
 import { Path } from "./path";
 
@@ -72,7 +73,7 @@ function Drafts() {
           return (
             <Path
               key={key}
-              fill={other.penColor ? colorToCss(other.penColor) : "#000"}
+              fill={other.penColor ? colorToCss(other.penColor) : DEFAULT_FILL_COLOR_CSS}
               points={other.pencilDraft}
               x={0}
               y={0}

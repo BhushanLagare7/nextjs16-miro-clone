@@ -5,6 +5,14 @@ import Stripe from "stripe";
 
 import { internal } from "./_generated/api";
 import { action, ActionCtx, internalAction } from "./_generated/server";
+import {
+  MS_PER_SECOND,
+  STRIPE_CURRENCY,
+  STRIPE_PRODUCT_DESCRIPTION,
+  STRIPE_PRODUCT_NAME,
+  STRIPE_RECURRING_INTERVAL,
+  STRIPE_UNIT_AMOUNT,
+} from "./constants";
 
 /**
  * Reads a required environment variable, throwing if it is not set.
@@ -71,7 +79,7 @@ async function retrieveSubscriptionFromSession(
  * @returns The current period end timestamp, in milliseconds.
  */
 function getCurrentPeriodEndMillis(subscription: Stripe.Subscription): number {
-  return subscription.items.data[0].current_period_end * 1000;
+  return subscription.items.data[0].current_period_end * MS_PER_SECOND;
 }
 
 /**
@@ -128,14 +136,14 @@ export const pay = action({
       line_items: [
         {
           price_data: {
-            currency: "USD",
+            currency: STRIPE_CURRENCY,
             product_data: {
-              name: "Board Pro",
-              description: "Unlimited boards for your organization",
+              name: STRIPE_PRODUCT_NAME,
+              description: STRIPE_PRODUCT_DESCRIPTION,
             },
-            unit_amount: 2000,
+            unit_amount: STRIPE_UNIT_AMOUNT,
             recurring: {
-              interval: "month",
+              interval: STRIPE_RECURRING_INTERVAL,
             },
           },
           quantity: 1,

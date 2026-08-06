@@ -16,6 +16,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { useRenameModal } from "@/store/use-rename-modal";
 
+import { APP_NAME, HINT_SIDE_OFFSET, LOGO_SIZE } from "./constants";
+
 
 /**
  * Props for the {@link Info} component.
@@ -31,8 +33,7 @@ const font = Poppins({
   weight: ["600"],
 });
 
-/** Offset (in px) applied to all `Hint` tooltips within this component. */
-const HINT_SIDE_OFFSET = 10;
+
 
 /**
  * Base styling shared by the info bar and its loading skeleton.
@@ -54,7 +55,14 @@ function TabSeparator() {
  * image element without duplicating its props.
  */
 function BoardLogo() {
-  return <Image alt="Board logo" height={28} src="/logo.svg" width={28} />;
+  return (
+    <Image
+      alt="Board logo"
+      height={LOGO_SIZE}
+      src="/logo.svg"
+      width={LOGO_SIZE}
+    />
+  );
 }
 
 /**
@@ -123,7 +131,7 @@ export function Info({ boardId }: InfoProps) {
                 font.className,
               )}
             >
-              NexCanvas
+              {APP_NAME}
             </span>
           </Link>
         </Button>

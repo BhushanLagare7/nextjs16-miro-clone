@@ -42,6 +42,14 @@ import {
   XYWH,
 } from "@/types/canvas";
 
+import {
+  DEFAULT_FILL_COLOR,
+  DEFAULT_LAYER_HEIGHT,
+  DEFAULT_LAYER_WIDTH,
+  MAX_LAYERS,
+  SELECTION_NET_THRESHOLD,
+  UNDO_REDO_KEY,
+} from "./constants";
 import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { LayerPreview } from "./layer-preview";
@@ -50,14 +58,6 @@ import { Path } from "./path";
 import { SelectionBox } from "./selection-box";
 import { SelectionTools } from "./selection-tools";
 import { Toolbar } from "./toolbar";
-
-/**
- * The maximum number of layers allowed on the canvas at any given time.
- * Inserting a new layer when this limit is reached will be a no-op.
- *
- * @constant {number}
- */
-const MAX_LAYERS = 100;
 
 /**
  * Determines whether the shared layer storage has reached the maximum
@@ -146,11 +146,7 @@ export function Canvas({ boardId }: CanvasProps) {
    * Local state holding the most recently used fill color. Applied as the
    * `fill` property when a new layer is inserted onto the canvas.
    */
-  const [lastUsedColor, setLastUsedColor] = useState<Color>({
-    r: 0,
-    g: 0,
-    b: 0,
-  });
+  const [lastUsedColor, setLastUsedColor] = useState<Color>(DEFAULT_FILL_COLOR);
 
   useDisableScrollBounce();
 
@@ -207,8 +203,8 @@ export function Canvas({ boardId }: CanvasProps) {
         type: layerType,
         x: position.x,
         y: position.y,
-        height: 100,
-        width: 100,
+        height: DEFAULT_LAYER_HEIGHT,
+        width: DEFAULT_LAYER_WIDTH,
         fill: lastUsedColor,
       });
 
@@ -331,7 +327,7 @@ export function Canvas({ boardId }: CanvasProps) {
    */
   const startMultiSelection = useCallback(
     (current: Point, origin: Point) => {
-      if (Math.abs(current.x - origin.x) + Math.abs(current.y - origin.y) > 5) {
+      if (Math.abs(current.x - origin.x) + Math.abs(current.y - origin.y) > SELECTION_NET_THRESHOLD) {
         setCanvasState({
           mode: CanvasMode.SelectionNet,
           origin,
@@ -785,7 +781,7 @@ export function Canvas({ boardId }: CanvasProps) {
       }
 
       switch (e.key.toLowerCase()) {
-        case "z": {
+        case UNDO_REDO_KEY: {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
             if (e.shiftKey) {

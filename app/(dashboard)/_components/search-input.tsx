@@ -16,6 +16,8 @@ import { useDebounceValue } from "usehooks-ts";
 
 import { Input } from "@/components/ui/input";
 
+import { SEARCH_DEBOUNCE_MS } from "./constants";
+
 /**
  * SearchInput Component
  *
@@ -64,7 +66,7 @@ export function SearchInput() {
    * Only updates 500ms after the user stops typing,
    * reducing the frequency of URL updates.
    */
-  const [debouncedValue] = useDebounceValue(value, 500);
+  const [debouncedValue] = useDebounceValue(value, SEARCH_DEBOUNCE_MS);
 
   /**
    * Handles changes to the search input field.

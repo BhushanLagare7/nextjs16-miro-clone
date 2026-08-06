@@ -30,6 +30,8 @@ import { useSelf, useStorage } from "@liveblocks/react";
 import { useSelectionBounds } from "@/hooks/use-selection-bounds";
 import { LayerType, Side, XYWH } from "@/types/canvas";
 
+import { HANDLE_WIDTH } from "./constants";
+
 // ---------------------------------------------------------------------------
 // Public interface
 // ---------------------------------------------------------------------------
@@ -59,12 +61,7 @@ interface SelectionBoxProps {
 // Constants
 // ---------------------------------------------------------------------------
 
-/**
- * The rendered side-length (in CSS pixels) of each square resize handle.
- * Handles are centered on their geometric position, so they extend
- * `HANDLE_WIDTH / 2` in each direction from their anchor point.
- */
-const HANDLE_WIDTH = 8;
+
 
 /**
  * Tailwind class string applied to the selection **outline** `<rect>`.

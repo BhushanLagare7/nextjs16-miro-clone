@@ -5,6 +5,8 @@
  * and elements onto the canvas, as well as undo/redo functionality.
  */
 
+import { useCallback } from "react";
+
 import {
   CircleIcon,
   MousePointer2Icon,
@@ -43,6 +45,52 @@ interface ToolbarProps {
 }
 
 /**
+ * The set of {@link CanvasMode} values that represent "selection-related"
+ * interactions. The Select tool button is considered active whenever the
+ * canvas is in one of these modes.
+ *
+ * Declared at module scope so it is created once rather than on every render.
+ */
+const SELECTION_MODES: ReadonlySet<CanvasMode> = new Set([
+  CanvasMode.None,
+  CanvasMode.Translating,
+  CanvasMode.SelectionNet,
+  CanvasMode.Pressing,
+  CanvasMode.Resizing,
+]);
+
+/**
+ * Describes a single "insertable" tool button (i.e. a tool that, when
+ * clicked, puts the canvas into {@link CanvasMode.Inserting} mode with a
+ * specific {@link LayerType}).
+ *
+ * @interface InsertableTool
+ * @property {LucideIcon} icon - The icon component rendered on the button.
+ * @property {string} label - The accessible label/tooltip for the button.
+ * @property {LayerType} layerType - The layer type inserted by this tool.
+ */
+/** The subset of layer types that can be inserted via the toolbar. */
+type InsertableLayerType =
+  | LayerType.Ellipse
+  | LayerType.Note
+  | LayerType.Rectangle
+  | LayerType.Text;
+
+
+/**
+ * Configuration for the "insertable" layer tools (Text, Sticky note,
+ * Rectangle, Ellipse). Declared at module scope so it is created once
+ * rather than on every render, and rendered via `.map()` to avoid
+ * duplicating near-identical JSX for each tool.
+ */
+const INSERTABLE_TOOLS = [
+  { icon: TypeIcon, label: "Text", layerType: LayerType.Text },
+  { icon: StickyNoteIcon, label: "Sticky note", layerType: LayerType.Note },
+  { icon: SquareIcon, label: "Rectangle", layerType: LayerType.Rectangle },
+  { icon: CircleIcon, label: "Ellipse", layerType: LayerType.Ellipse },
+] as const;
+
+/**
  * Toolbar component that renders the primary set of drawing and selection tools
  * for the canvas board, as well as undo/redo controls.
  *
@@ -76,6 +124,37 @@ export function Toolbar({
   canUndo,
   canRedo,
 }: ToolbarProps) {
+  /**
+   * Determines whether the canvas is currently inserting a layer of the
+   * given type, i.e. whether the corresponding tool button should render
+   * as "active".
+   */
+  const isInsertingLayer = useCallback(
+    (layerType: LayerType) =>
+      canvasState.mode === CanvasMode.Inserting &&
+      canvasState.layerType === layerType,
+    [canvasState],
+  );
+
+  /** Switches the canvas back to the default Select mode. */
+  const selectSelectTool = useCallback(
+    () => setCanvasState({ mode: CanvasMode.None }),
+    [setCanvasState],
+  );
+
+  /** Switches the canvas into Inserting mode for the given layer type. */
+  const selectInsertTool = useCallback(
+    (layerType: InsertableLayerType) =>
+      setCanvasState({ mode: CanvasMode.Inserting, layerType }),
+    [setCanvasState],
+  );
+
+  /** Switches the canvas into freehand Pencil drawing mode. */
+  const selectPencilTool = useCallback(
+    () => setCanvasState({ mode: CanvasMode.Pencil }),
+    [setCanvasState],
+  );
+
   return (
     <div className="absolute top-[50%] left-2 flex translate-y-[-50%] flex-col gap-y-4">
       {/* Tools Panel */}
@@ -83,95 +162,28 @@ export function Toolbar({
         {/* Select Tool: Active when canvas is in selection-related modes */}
         <ToolButton
           icon={MousePointer2Icon}
-          isActive={
-            canvasState.mode === CanvasMode.None ||
-            canvasState.mode === CanvasMode.Translating ||
-            canvasState.mode === CanvasMode.SelectionNet ||
-            canvasState.mode === CanvasMode.Pressing ||
-            canvasState.mode === CanvasMode.Resizing
-          }
+          isActive={SELECTION_MODES.has(canvasState.mode)}
           label="Select"
-          onClick={() =>
-            setCanvasState({
-              mode: CanvasMode.None,
-            })
-          }
+          onClick={selectSelectTool}
         />
 
-        {/* Text Tool: Inserts a text layer onto the canvas */}
-        <ToolButton
-          icon={TypeIcon}
-          isActive={
-            canvasState.mode === CanvasMode.Inserting &&
-            canvasState.layerType === LayerType.Text
-          }
-          label="Text"
-          onClick={() =>
-            setCanvasState({
-              mode: CanvasMode.Inserting,
-              layerType: LayerType.Text,
-            })
-          }
-        />
-
-        {/* Sticky Note Tool: Inserts a sticky note layer onto the canvas */}
-        <ToolButton
-          icon={StickyNoteIcon}
-          isActive={
-            canvasState.mode === CanvasMode.Inserting &&
-            canvasState.layerType === LayerType.Note
-          }
-          label="Sticky note"
-          onClick={() =>
-            setCanvasState({
-              mode: CanvasMode.Inserting,
-              layerType: LayerType.Note,
-            })
-          }
-        />
-
-        {/* Rectangle Tool: Inserts a rectangle layer onto the canvas */}
-        <ToolButton
-          icon={SquareIcon}
-          isActive={
-            canvasState.mode === CanvasMode.Inserting &&
-            canvasState.layerType === LayerType.Rectangle
-          }
-          label="Rectangle"
-          onClick={() =>
-            setCanvasState({
-              mode: CanvasMode.Inserting,
-              layerType: LayerType.Rectangle,
-            })
-          }
-        />
-
-        {/* Ellipse Tool: Inserts an ellipse layer onto the canvas */}
-        <ToolButton
-          icon={CircleIcon}
-          isActive={
-            canvasState.mode === CanvasMode.Inserting &&
-            canvasState.layerType === LayerType.Ellipse
-          }
-          label="Ellipse"
-          onClick={() =>
-            setCanvasState({
-              mode: CanvasMode.Inserting,
-              layerType: LayerType.Ellipse,
-            })
-          }
-        />
+        {/* Insertable layer tools: Text, Sticky note, Rectangle, Ellipse */}
+        {INSERTABLE_TOOLS.map(({ icon, label, layerType }) => (
+          <ToolButton
+            key={layerType}
+            icon={icon}
+            isActive={isInsertingLayer(layerType)}
+            label={label}
+            onClick={() => selectInsertTool(layerType)}
+          />
+        ))}
 
         {/* Pencil Tool: Enables freehand drawing mode */}
         <ToolButton
           icon={PencilIcon}
           isActive={canvasState.mode === CanvasMode.Pencil}
           label="Pen"
-          onClick={() =>
-            setCanvasState({
-              mode: CanvasMode.Pencil,
-            })
-          }
+          onClick={selectPencilTool}
         />
       </div>
 
