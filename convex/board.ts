@@ -139,7 +139,7 @@ export const create = mutation({
     ]);
 
     if (!isSubscribed && existingBoards.length >= ORG_BOARD_LIMIT) {
-      throw new Error("Organization board limit reached!");
+      throw new Error("BOARD_LIMIT");
     }
 
     const board = await ctx.db.insert("boards", {

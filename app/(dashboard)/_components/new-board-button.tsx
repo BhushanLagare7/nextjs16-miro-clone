@@ -77,9 +77,13 @@ export function NewBoardButton({ orgId, disabled }: NewBoardButtonProps) {
         // Navigate directly into the new board after creation.
         router.push(`/board/${id}`);
       })
-      .catch(() => {
-        toast.error("Failed to create board");
-        onOpen();
+      .catch((error: Error) => {
+        if (error.message.includes("BOARD_LIMIT")) {
+          toast.error("Board limit reached. Upgrade to Pro!");
+          onOpen();
+        } else {
+          toast.error("Failed to create board");
+        }
       });
   };
 

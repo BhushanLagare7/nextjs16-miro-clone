@@ -141,6 +141,7 @@ export function OrgSidebar() {
    */
   const onClick = async () => {
     if (!organization?.id) return;
+    if (isSubscribed === undefined) return;
 
     startTransition(async () => {
       try {
@@ -245,7 +246,7 @@ export function OrgSidebar() {
          */}
         <Button
           className="w-full justify-start px-2 font-normal"
-          disabled={pending}
+          disabled={pending || isSubscribed === undefined}
           size="lg"
           variant="ghost"
           onClick={onClick}

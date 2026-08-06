@@ -1,5 +1,5 @@
 /**
- * @file board-card.tsx
+ * @file index.tsx
  * @description A card component representing a single board in the board
  * grid. Displays a thumbnail, hover overlay, context menu, and footer
  * with author info and a favorite toggle. Includes a skeleton sub-component
@@ -71,7 +71,7 @@ interface BoardCardProps {
  * `BoardCard.Skeleton` renders a placeholder skeleton for use during loading states.
  *
  * @param {BoardCardProps} props - The props for the component.
- * @returns {JSX.Element} A linked, interactive board card.
+ * @returns {React.JSX.Element} A linked, interactive board card.
  *
  * @example
  * ```tsx
@@ -155,7 +155,7 @@ export function BoardCard({
         {/* Card image area — fills available space, shows overlay and actions on hover */}
         <div className="relative flex-1 bg-amber-50">
           {/* Board thumbnail / preview image */}
-          <Image alt={title} className="object-fill" fill src={imageUrl} />
+          <Image alt={title} className="object-cover" fill src={imageUrl} />
 
           {/* Semi-transparent black overlay revealed on group hover */}
           <Overlay />
@@ -197,7 +197,7 @@ export function BoardCard({
  * Used by `BoardList` during the loading state to preserve grid layout
  * before real data arrives.
  *
- * @returns {JSX.Element} A skeleton placeholder with the board card's dimensions.
+ * @returns {React.JSX.Element} A skeleton placeholder with the board card's dimensions.
  *
  * @example
  * ```tsx

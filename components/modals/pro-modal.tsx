@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import { useOrganization } from "@clerk/nextjs";
 import { useAction } from "convex/react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -62,8 +63,12 @@ export function ProModal() {
   const onClick = async () => {
     if (!organization) return;
     startTransition(async () => {
-      const redirectUrl = await pay({ orgId: organization.id });
-      window.location.href = redirectUrl;
+      try {
+        const redirectUrl = await pay({ orgId: organization.id });
+        window.location.href = redirectUrl;
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
     });
   };
 
