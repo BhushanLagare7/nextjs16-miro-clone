@@ -1,13 +1,31 @@
+import type { Metadata } from "next";
+
 import { Room } from "@/components/room";
 
 import { Canvas } from "./_components/canvas";
 import { BoardIdPageSkeleton } from "./_components/loading";
 
-interface BoardIdPageProps {
+interface BoardBoardIdPageProps {
   params: Promise<{ boardId: string }>;
 }
 
-export default async function BoardIdPage({ params }: BoardIdPageProps) {
+export async function generateMetadata({
+  params,
+}: BoardBoardIdPageProps): Promise<Metadata> {
+  const { boardId } = await params;
+
+  return {
+    title: `Board ${boardId}`,
+    description: `Collaborative canvas board on NexCanvas`,
+    alternates: {
+      canonical: `/board/${boardId}`,
+    },
+  };
+}
+
+export default async function BoardBoardIdPage({
+  params,
+}: BoardBoardIdPageProps) {
   const { boardId } = await params;
   return (
     <Room fallback={<BoardIdPageSkeleton />} roomId={boardId}>
@@ -15,3 +33,4 @@ export default async function BoardIdPage({ params }: BoardIdPageProps) {
     </Room>
   );
 }
+
