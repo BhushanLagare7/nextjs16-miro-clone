@@ -1,6 +1,6 @@
 import { AuthConfig } from "convex/server";
 
-import { requireEnvVar } from "@/lib/utils";
+import { requireEnvVar } from "../lib/utils";
 
 export default {
   providers: [

@@ -3,7 +3,7 @@
 import { v } from "convex/values";
 import Stripe from "stripe";
 
-import { requireEnvVar } from "@/lib/utils";
+import { requireEnvVar } from "../lib/utils";
 
 import { internal } from "./_generated/api";
 import { action, ActionCtx, internalAction } from "./_generated/server";

@@ -21,8 +21,8 @@
 
 - Rename all Page and Layout components based on their file path to ensure global uniqueness.
 - **Rule:** Ignore route groups (folders wrapped in parentheses `(...)`) and convert remaining path segments into PascalCase.
-- _Example 1:_ `src/app/(app)/(tenants)/tenants/[slug]/(home)/products/[productId]/page.tsx` -> `TenantsProductIdPage`
-- _Example 2:_ `src/app/(app)/(tenants)/tenants/[slug]/(checkout)/layout.tsx` -> `TenantsCheckoutLayout`
+- _Example 1:_ `src/app/(app)/(tenants)/tenants/[slug]/(home)/products/[productId]/page.tsx` -> `TenantsSlugProductsProductIdPage`
+- _Example 2:_ `src/app/(app)/(tenants)/tenants/[slug]/(checkout)/layout.tsx` -> `TenantsSlugLayout`
 
 ## 4. Skeleton Component Naming
 

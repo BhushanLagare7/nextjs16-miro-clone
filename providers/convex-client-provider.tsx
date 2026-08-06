@@ -12,10 +12,15 @@ import {
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 
 import { AuthLoadingSkeleton } from "@/components/auth/loading";
-import { requireEnvVar } from "@/lib/utils";
 
 interface ConvexClientProviderProps {
   children: ReactNode;
+}
+
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+
+if (!convexUrl) {
+  throw new Error("NEXT_PUBLIC_CONVEX_URL is not set in environment variables");
 }
 
 /**
@@ -23,9 +28,8 @@ interface ConvexClientProviderProps {
  *
  * Because this file is a module, `convex` is created once and reused
  * across re-renders instead of being re-instantiated on every render.
- * `requireEnvVar` fails fast at module load time if NEXT_PUBLIC_CONVEX_URL is missing.
  */
-const convex = new ConvexReactClient(requireEnvVar("NEXT_PUBLIC_CONVEX_URL"));
+const convex = new ConvexReactClient(convexUrl);
 
 /**
  * ConvexClientProvider
