@@ -5,8 +5,6 @@
  * and selection UI are defined here for discoverability and consistency.
  */
 
-import type { Color } from "@/types/canvas";
-
 // ---------------------------------------------------------------------------
 // Canvas & Layer Limits
 // ---------------------------------------------------------------------------
@@ -43,7 +41,7 @@ export const SELECTION_NET_THRESHOLD = 5;
  * The default fill color object used when no explicit fill is available.
  * Represents black in RGB.
  */
-export const DEFAULT_FILL_COLOR: Color = { r: 0, g: 0, b: 0 };
+export const DEFAULT_FILL_COLOR = { r: 0, g: 0, b: 0 } as const;
 
 /**
  * CSS hex representation of {@link DEFAULT_FILL_COLOR}.

@@ -26,7 +26,7 @@ export const BOARD_TITLE_MAX_LENGTH = 60;
  * Pool of placeholder cover images assigned to newly created boards.
  * A random entry is chosen each time a board is created.
  */
-export const BOARD_PLACEHOLDER_IMAGES: readonly string[] = [
+export const BOARD_PLACEHOLDER_IMAGES = [
   "/placeholders/1.svg",
   "/placeholders/2.svg",
   "/placeholders/3.svg",
@@ -37,7 +37,7 @@ export const BOARD_PLACEHOLDER_IMAGES: readonly string[] = [
   "/placeholders/8.svg",
   "/placeholders/9.svg",
   "/placeholders/10.svg",
-];
+] as const;
 
 /**
  * Fallback author name used when neither the user's name nor email
@@ -75,7 +75,7 @@ export const STRIPE_UNIT_AMOUNT = 2000;
 /**
  * ISO 4217 currency code used for Stripe checkout sessions.
  */
-export const STRIPE_CURRENCY = "USD";
+export const STRIPE_CURRENCY = "usd" as const;
 
 /**
  * Billing interval for the recurring subscription.

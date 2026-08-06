@@ -9,7 +9,6 @@ import { useCallback } from "react";
 
 import {
   CircleIcon,
-  LucideIcon,
   MousePointer2Icon,
   PencilIcon,
   Redo2Icon,
@@ -77,11 +76,6 @@ type InsertableLayerType =
   | LayerType.Rectangle
   | LayerType.Text;
 
-interface InsertableTool {
-  icon: LucideIcon;
-  label: string;
-  layerType: InsertableLayerType;
-}
 
 /**
  * Configuration for the "insertable" layer tools (Text, Sticky note,
@@ -89,12 +83,12 @@ interface InsertableTool {
  * rather than on every render, and rendered via `.map()` to avoid
  * duplicating near-identical JSX for each tool.
  */
-const INSERTABLE_TOOLS: readonly InsertableTool[] = [
+const INSERTABLE_TOOLS = [
   { icon: TypeIcon, label: "Text", layerType: LayerType.Text },
   { icon: StickyNoteIcon, label: "Sticky note", layerType: LayerType.Note },
   { icon: SquareIcon, label: "Rectangle", layerType: LayerType.Rectangle },
   { icon: CircleIcon, label: "Ellipse", layerType: LayerType.Ellipse },
-];
+] as const;
 
 /**
  * Toolbar component that renders the primary set of drawing and selection tools
