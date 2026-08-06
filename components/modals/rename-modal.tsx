@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { BOARD_TITLE_MAX_LENGTH } from "@/convex/constants";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { useRenameModal } from "@/store/use-rename-modal";
 
@@ -130,12 +131,12 @@ export function RenameModal() {
           {/*
            * Input field for the new board title.
            * - Disabled during pending API mutation to prevent multiple submissions
-           * - Limited to 60 characters
+           * - Limited to {BOARD_TITLE_MAX_LENGTH} characters
            * - Required to prevent empty title submission
            */}
           <Input
             disabled={pending}
-            maxLength={60}
+            maxLength={BOARD_TITLE_MAX_LENGTH}
             placeholder="Board title"
             required
             value={title}

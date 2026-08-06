@@ -9,6 +9,8 @@
 import { colorToCss } from "@/lib/utils";
 import { RectangleLayer } from "@/types/canvas";
 
+import { DEFAULT_FILL_COLOR_CSS, SVG_STROKE_WIDTH } from "./constants";
+
 /**
  * Props for the {@link Rectangle} component.
  *
@@ -79,10 +81,10 @@ export function Rectangle({
   return (
     <rect
       className="drop-shadow-md"
-      fill={fill ? colorToCss(fill) : "#000"}
+      fill={fill ? colorToCss(fill) : DEFAULT_FILL_COLOR_CSS}
       height={height}
       stroke={selectionColor ?? "transparent"}
-      strokeWidth={1}
+      strokeWidth={SVG_STROKE_WIDTH}
       style={{
         transform: `translate(${x}px, ${y}px)`,
       }}

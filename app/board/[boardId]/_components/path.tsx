@@ -10,6 +10,8 @@ import getStroke from "perfect-freehand";
 
 import { getSvgPathFromStroke } from "@/lib/utils";
 
+import { FREEHAND_STROKE_OPTIONS, SVG_STROKE_WIDTH } from "./constants";
+
 /**
  * Props for the Path component.
  *
@@ -80,16 +82,11 @@ export function Path({ x, y, points, fill, onPointerDown, stroke }: PathProps) {
     <path
       className="drop-shadow-md"
       d={getSvgPathFromStroke(
-        getStroke(points, {
-          size: 16,
-          thinning: 0.5,
-          smoothing: 0.5,
-          streamline: 0.5,
-        }),
+        getStroke(points, FREEHAND_STROKE_OPTIONS),
       )}
       fill={fill}
       stroke={stroke}
-      strokeWidth={1}
+      strokeWidth={SVG_STROKE_WIDTH}
       style={{
         transform: `translate(${x}px, ${y}px)`,
       }}

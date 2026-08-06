@@ -19,6 +19,8 @@ import {
 
 import { Layer } from "@/types/canvas";
 
+import { LIVEBLOCKS_AUTH_ENDPOINT, LIVEBLOCKS_THROTTLE_MS } from "./constants";
+
 /**
  * Props for the Room component.
  *
@@ -76,7 +78,7 @@ interface RoomProps {
  */
 export function Room({ children, roomId, fallback }: RoomProps) {
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth" throttle={16}>
+    <LiveblocksProvider authEndpoint={LIVEBLOCKS_AUTH_ENDPOINT} throttle={LIVEBLOCKS_THROTTLE_MS}>
       <RoomProvider
         id={roomId}
         initialPresence={{

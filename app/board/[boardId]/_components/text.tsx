@@ -9,16 +9,17 @@ import { useMutation } from "@liveblocks/react";
 import { cn, colorToCss } from "@/lib/utils";
 import { TextLayer } from "@/types/canvas";
 
+import {
+  DEFAULT_FILL_COLOR_CSS,
+  DEFAULT_TEXT_VALUE,
+  TEXT_FONT_SCALE_FACTOR,
+  TEXT_MAX_FONT_SIZE,
+} from "./constants";
+
 const font = Kalam({
   subsets: ["latin"],
   weight: ["400"],
 });
-
-/** Maximum font size, in pixels, a text layer can scale up to. */
-const MAX_FONT_SIZE = 96;
-
-/** Fraction of the text layer's dimensions used to derive the font size. */
-const FONT_SCALE_FACTOR = 0.5;
 
 /**
  * Calculates an appropriate font size for a text layer based on its
@@ -29,10 +30,10 @@ const FONT_SCALE_FACTOR = 0.5;
  * @returns The computed font size, in pixels.
  */
 function calculateFontSize(width: number, height: number): number {
-  const fontSizeBasedOnHeight = height * FONT_SCALE_FACTOR;
-  const fontSizeBasedOnWidth = width * FONT_SCALE_FACTOR;
+  const fontSizeBasedOnHeight = height * TEXT_FONT_SCALE_FACTOR;
+  const fontSizeBasedOnWidth = width * TEXT_FONT_SCALE_FACTOR;
 
-  return Math.min(fontSizeBasedOnHeight, fontSizeBasedOnWidth, MAX_FONT_SIZE);
+  return Math.min(fontSizeBasedOnHeight, fontSizeBasedOnWidth, TEXT_MAX_FONT_SIZE);
 }
 
 interface TextProps {
@@ -93,7 +94,7 @@ export const Text = memo(function Text({
   const contentStyle = useMemo(
     () => ({
       fontSize,
-      color: fill ? colorToCss(fill) : "#000",
+      color: fill ? colorToCss(fill) : DEFAULT_FILL_COLOR_CSS,
     }),
     [fontSize, fill],
   );
@@ -112,7 +113,7 @@ export const Text = memo(function Text({
           "flex h-full w-full items-center justify-center text-center drop-shadow-md outline-none",
           font.className,
         )}
-        html={value ?? "Text"}
+        html={value ?? DEFAULT_TEXT_VALUE}
         style={contentStyle}
         onChange={handleContentChange}
       />

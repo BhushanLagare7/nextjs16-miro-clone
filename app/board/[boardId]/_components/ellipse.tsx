@@ -3,6 +3,8 @@ import { memo, useCallback, useMemo } from "react";
 import { colorToCss } from "@/lib/utils";
 import { EllipseLayer } from "@/types/canvas";
 
+import { DEFAULT_FILL_COLOR_CSS, SVG_STROKE_WIDTH } from "./constants";
+
 interface EllipseProps {
   id: string;
   layer: EllipseLayer;
@@ -45,11 +47,11 @@ export const Ellipse = memo(function Ellipse({
       className="drop-shadow-md"
       cx={width / 2}
       cy={height / 2}
-      fill={fill ? colorToCss(fill) : "#000"}
+      fill={fill ? colorToCss(fill) : DEFAULT_FILL_COLOR_CSS}
       rx={width / 2}
       ry={height / 2}
       stroke={selectionColor ?? "transparent"}
-      strokeWidth="1"
+      strokeWidth={SVG_STROKE_WIDTH}
       style={translateStyle}
       onPointerDown={handlePointerDown}
     />

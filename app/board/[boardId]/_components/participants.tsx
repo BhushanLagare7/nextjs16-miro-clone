@@ -4,10 +4,12 @@ import { useOthers, useSelf } from "@liveblocks/react";
 
 import { cn, connectionIdToColor } from "@/lib/utils";
 
+import {
+  DEFAULT_AVATAR_FALLBACK,
+  DEFAULT_USER_NAME,
+  MAX_SHOWN_USERS,
+} from "./constants";
 import { UserAvatar } from "./user-avatar";
-
-/** Maximum number of other participants' avatars shown before collapsing into a "+N" indicator. */
-const MAX_SHOWN_USERS = 2;
 
 /**
  * Base styling shared by the participants bar and its loading skeleton.
@@ -35,7 +37,7 @@ export function Participants() {
           <UserAvatar
             key={connectionId}
             borderColor={connectionIdToColor(connectionId)}
-            fallback={info?.name?.[0] ?? "T"}
+            fallback={info?.name?.[0] ?? DEFAULT_AVATAR_FALLBACK}
             name={info?.name}
             src={info?.picture}
           />
@@ -44,8 +46,8 @@ export function Participants() {
         {currentUser && (
           <UserAvatar
             borderColor={connectionIdToColor(currentUser.connectionId)}
-            fallback={currentUser.info?.name?.[0] ?? "T"}
-            name={`${currentUser.info?.name ?? "Teammate"} (You)`}
+            fallback={currentUser.info?.name?.[0] ?? DEFAULT_AVATAR_FALLBACK}
+            name={`${currentUser.info?.name ?? DEFAULT_USER_NAME} (You)`}
             src={currentUser.info?.picture}
           />
         )}

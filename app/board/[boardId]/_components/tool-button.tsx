@@ -12,6 +12,8 @@ import { LucideIcon } from "lucide-react";
 import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 
+import { TOOL_BUTTON_HINT_OFFSET } from "./constants";
+
 /**
  * Props for the ToolButton component.
  *
@@ -78,7 +80,7 @@ export function ToolButton({
 }: ToolButtonProps) {
   return (
     // Hint provides an accessible tooltip displayed to the right of the button
-    <Hint label={label} side="right" sideOffset={14}>
+    <Hint label={label} side="right" sideOffset={TOOL_BUTTON_HINT_OFFSET}>
       <Button
         aria-label={label}
         disabled={isDisabled}

@@ -8,6 +8,8 @@
 import { Hint } from "@/components/hint";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+import { DEFAULT_USER_NAME, USER_AVATAR_TOOLTIP_OFFSET } from "./constants";
+
 /**
  * Props for the UserAvatar component.
  *
@@ -64,7 +66,7 @@ export function UserAvatar({
 }: UserAvatarProps) {
   return (
     // Tooltip displaying the participant's name, positioned below the avatar
-    <Hint label={name ?? "Teammate"} side="bottom" sideOffset={18}>
+    <Hint label={name ?? DEFAULT_USER_NAME} side="bottom" sideOffset={USER_AVATAR_TOOLTIP_OFFSET}>
       <Avatar className="size-8 border-2" style={{ borderColor }}>
         {/* Participant's profile image */}
         <AvatarImage src={src} />

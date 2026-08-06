@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 
+import { DEFAULT_BOARD_TITLE } from "./constants";
+
 /**
  * `EmptyBoards` is an empty-state component displayed when an organization
  * has no boards yet.
@@ -55,7 +57,7 @@ export function EmptyBoards() {
 
     mutate({
       orgId: organization.id,
-      title: "Untitled",
+      title: DEFAULT_BOARD_TITLE,
     })
       .then((id) => {
         toast.success("Board created");

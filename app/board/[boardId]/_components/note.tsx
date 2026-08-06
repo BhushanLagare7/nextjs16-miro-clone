@@ -9,16 +9,17 @@ import { useMutation } from "@liveblocks/react";
 import { cn, colorToCss, getContrastingTextColor } from "@/lib/utils";
 import { NoteLayer } from "@/types/canvas";
 
+import {
+  DEFAULT_FILL_COLOR_CSS,
+  DEFAULT_TEXT_VALUE,
+  NOTE_FONT_SCALE_FACTOR,
+  NOTE_MAX_FONT_SIZE,
+} from "./constants";
+
 const font = Kalam({
   subsets: ["latin"],
   weight: ["400"],
 });
-
-/** Maximum font size, in pixels, a note's text can scale up to. */
-const MAX_FONT_SIZE = 96;
-
-/** Fraction of the note's dimensions used to derive the font size. */
-const FONT_SCALE_FACTOR = 0.15;
 
 /**
  * Calculates an appropriate font size for a sticky note based on its
@@ -29,10 +30,10 @@ const FONT_SCALE_FACTOR = 0.15;
  * @returns The computed font size, in pixels.
  */
 function calculateFontSize(width: number, height: number): number {
-  const fontSizeBasedOnHeight = height * FONT_SCALE_FACTOR;
-  const fontSizeBasedOnWidth = width * FONT_SCALE_FACTOR;
+  const fontSizeBasedOnHeight = height * NOTE_FONT_SCALE_FACTOR;
+  const fontSizeBasedOnWidth = width * NOTE_FONT_SCALE_FACTOR;
 
-  return Math.min(fontSizeBasedOnHeight, fontSizeBasedOnWidth, MAX_FONT_SIZE);
+  return Math.min(fontSizeBasedOnHeight, fontSizeBasedOnWidth, NOTE_MAX_FONT_SIZE);
 }
 
 interface NoteProps {
@@ -85,14 +86,14 @@ export const Note = memo(function Note({
   );
 
   const textColor = useMemo(
-    () => (fill ? getContrastingTextColor(fill) : "#000"),
+    () => (fill ? getContrastingTextColor(fill) : DEFAULT_FILL_COLOR_CSS),
     [fill],
   );
 
   const foreignObjectStyle = useMemo(
     () => ({
       outline: selectionColor ? `1px solid ${selectionColor}` : "none",
-      backgroundColor: fill ? colorToCss(fill) : "#000",
+      backgroundColor: fill ? colorToCss(fill) : DEFAULT_FILL_COLOR_CSS,
     }),
     [selectionColor, fill],
   );
@@ -117,7 +118,7 @@ export const Note = memo(function Note({
           "flex h-full w-full items-center justify-center text-center outline-none",
           font.className,
         )}
-        html={value ?? "Text"}
+        html={value ?? DEFAULT_TEXT_VALUE}
         style={contentStyle}
         onChange={handleContentChange}
       />

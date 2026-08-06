@@ -6,9 +6,12 @@ import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@/convex/_generated/api";
+import { BOARD_LIMIT_ERROR } from "@/convex/constants";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { cn } from "@/lib/utils";
 import { useProModal } from "@/store/use-pro-modal";
+
+import { DEFAULT_BOARD_TITLE } from "./constants";
 
 /**
  * Props for the NewBoardButton component.
@@ -70,7 +73,7 @@ export function NewBoardButton({ orgId, disabled }: NewBoardButtonProps) {
   const onClick = () => {
     mutate({
       orgId,
-      title: "Untitled",
+      title: DEFAULT_BOARD_TITLE,
     })
       .then((id) => {
         toast.success("Board created");
@@ -78,7 +81,7 @@ export function NewBoardButton({ orgId, disabled }: NewBoardButtonProps) {
         router.push(`/board/${id}`);
       })
       .catch((error: Error) => {
-        if (error.message.includes("BOARD_LIMIT")) {
+        if (error.message.includes(BOARD_LIMIT_ERROR)) {
           toast.error("Board limit reached. Upgrade to Pro!");
           onOpen();
         } else {

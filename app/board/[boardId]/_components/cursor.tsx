@@ -14,6 +14,13 @@ import { MousePointer2Icon } from "lucide-react";
 
 import { connectionIdToColor } from "@/lib/utils";
 
+import {
+  CURSOR_FOREIGN_OBJECT_HEIGHT,
+  CURSOR_NAME_CHAR_WIDTH,
+  CURSOR_NAME_PADDING,
+  DEFAULT_USER_NAME,
+} from "./constants";
+
 /**
  * Props for the Cursor component.
  *
@@ -70,7 +77,7 @@ export const Cursor = memo(({ connectionId }: CursorProps) => {
   const cursor = useOther(connectionId, (user) => user.presence.cursor);
 
   /** Display name shown in the cursor label. Falls back to "Teammate". */
-  const name = info?.name ?? "Teammate";
+  const name = info?.name ?? DEFAULT_USER_NAME;
 
   if (!cursor) {
     return null;
@@ -81,7 +88,7 @@ export const Cursor = memo(({ connectionId }: CursorProps) => {
   return (
     <foreignObject
       className="relative drop-shadow-md"
-      height={50}
+      height={CURSOR_FOREIGN_OBJECT_HEIGHT}
       style={{
         transform: `translateX(${x}px) translateY(${y}px)`,
       }}
@@ -89,7 +96,7 @@ export const Cursor = memo(({ connectionId }: CursorProps) => {
        * Width is dynamically calculated based on the participant's name length
        * to ensure the label fits without clipping.
        */
-      width={name.length * 10 + 24}
+      width={name.length * CURSOR_NAME_CHAR_WIDTH + CURSOR_NAME_PADDING}
     >
       {/* Pointer icon colored uniquely per participant */}
       <MousePointer2Icon

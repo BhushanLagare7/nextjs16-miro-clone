@@ -14,6 +14,7 @@ import { useStorage } from "@liveblocks/react";
 import { colorToCss } from "@/lib/utils";
 import { LayerType } from "@/types/canvas";
 
+import { DEFAULT_FILL_COLOR_CSS } from "./constants";
 import { Ellipse } from "./ellipse";
 import { Note } from "./note";
 import { Path } from "./path";
@@ -95,7 +96,7 @@ export const LayerPreview = memo(
         return (
           <Path
             key={id}
-            fill={layer.fill ? colorToCss(layer.fill) : "#000"}
+            fill={layer.fill ? colorToCss(layer.fill) : DEFAULT_FILL_COLOR_CSS}
             points={layer.points}
             stroke={selectionColor}
             x={layer.x}

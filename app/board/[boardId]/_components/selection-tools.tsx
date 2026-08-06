@@ -21,6 +21,7 @@ import { useSelectionBounds } from "@/hooks/use-selection-bounds";
 import { Camera, Color } from "@/types/canvas";
 
 import { ColorPicker } from "./color-picker";
+import { SELECTION_TOOLS_Y_OFFSET } from "./constants";
 
 /**
  * Props accepted by the {@link SelectionTools} component.
@@ -230,7 +231,7 @@ export const SelectionTools = memo(
         style={{
           transform: `translate(
           calc(${x}px - 50%),
-          calc(${y - 16}px - 100%)
+          calc(${y - SELECTION_TOOLS_Y_OFFSET}px - 100%)
         )`,
         }}
       >
