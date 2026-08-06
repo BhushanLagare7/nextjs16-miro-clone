@@ -7,15 +7,20 @@
 
 "use client";
 
+import { useTransition } from "react";
 import { Poppins } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { OrganizationSwitcher } from "@clerk/nextjs";
-import { LayoutDashboardIcon, StarIcon } from "lucide-react";
+import { OrganizationSwitcher, useOrganization } from "@clerk/nextjs";
+import { useAction, useQuery } from "convex/react";
+import { BanknoteIcon, LayoutDashboardIcon, StarIcon } from "lucide-react";
+import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,6 +40,7 @@ const font = Poppins({
  * - Application logo and brand name linking to the home page.
  * - An organization switcher for switching between organizations.
  * - Navigation buttons for "Team canvases" and "Favorite canvases".
+ * - A billing/upgrade button that redirects to Stripe for payment or portal management.
  *
  * @component
  * @example
@@ -61,8 +67,18 @@ const font = Poppins({
  * - Personal accounts are hidden (`hidePersonal`) to keep focus on
  *   organization-level navigation.
  *
+ * ### Billing Button:
+ * - Displays "Upgrade" for non-subscribed organizations, triggering a
+ *   Stripe Checkout session via `api.stripe.pay`.
+ * - Displays "Payment Settings" for subscribed organizations, opening
+ *   the Stripe customer portal via `api.stripe.portal`.
+ * - Disabled while a redirect is in-flight (`pending === true`).
+ * - Displays a `PRO` badge next to the logo when the organization has
+ *   an active subscription.
+ *
  * @returns {JSX.Element} A sidebar with logo, organization switcher,
- * and canvas navigation buttons. Only visible on large screens.
+ * canvas navigation buttons, and a billing button. Only visible on
+ * large screens.
  */
 export function OrgSidebar() {
   /**
@@ -78,15 +94,79 @@ export function OrgSidebar() {
    */
   const favorites = searchParams.get("favorites");
 
+  /** The currently active Clerk organization object. */
+  const { organization } = useOrganization();
+
+  /**
+   * Reactive subscription status for the current organization.
+   * - `true`  → organization has an active Pro subscription.
+   * - `false` → organization is on the free tier.
+   * - `undefined` → query is still loading.
+   */
+  const isSubscribed = useQuery(api.subscriptions.getIsSubscribed, {
+    orgId: organization?.id,
+  });
+
+  /**
+   * Convex action that creates or retrieves a Stripe customer portal
+   * session URL for the current organization.
+   * Called when the organization already has an active subscription.
+   */
+  const portal = useAction(api.stripe.portal);
+
+  /**
+   * Convex action that creates a Stripe Checkout session URL for the
+   * current organization.
+   * Called when the organization is not yet subscribed.
+   */
+  const pay = useAction(api.stripe.pay);
+
+  /**
+   * React transition state used to track the in-flight Stripe redirect.
+   * - `pending` → `true` while the async action is running.
+   * - `startTransition` → wraps the async billing action to set `pending`.
+   */
+  const [pending, startTransition] = useTransition();
+
+  /**
+   * Handles the billing button click.
+   *
+   * - Guards against missing organization ID.
+   * - Selects the appropriate Stripe action (`portal` vs `pay`) based on
+   *   the current subscription status.
+   * - Redirects the browser to the returned Stripe URL.
+   * - Displays an error toast if the action throws.
+   *
+   * @returns {void}
+   */
+  const onClick = async () => {
+    if (!organization?.id) return;
+
+    startTransition(async () => {
+      try {
+        const action = isSubscribed ? portal : pay;
+        const redirectUrl = await action({ orgId: organization?.id });
+        window.location.href = redirectUrl;
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+    });
+  };
+
   return (
     <div className="hidden w-51.5 flex-col space-y-6 pt-5 pl-5 lg:flex">
-      {/* Application logo and brand name linking to the home page */}
+      {/*
+       * Application logo and brand name.
+       * Clicking navigates to the home page.
+       * The PRO badge is shown when the organization has an active subscription.
+       */}
       <Link href="/">
-        <div className="flex items-center gap-x-2">
-          <Image alt="Logo" height={40} src="/logo.svg" width={40} />
-          <span className={cn("text-2xl font-semibold", font.className)}>
+        <div className="flex items-center justify-center gap-x-1">
+          <Image alt="Logo" height={32} src="/logo.svg" width={32} />
+          <span className={cn("text-xl font-semibold", font.className)}>
             NexCanvas
           </span>
+          {isSubscribed && <Badge variant="secondary">PRO</Badge>}
         </div>
       </Link>
 
@@ -116,7 +196,7 @@ export function OrgSidebar() {
         hidePersonal
       />
 
-      {/* Navigation buttons for canvas views */}
+      {/* Navigation buttons for canvas views and billing */}
       <div className="w-full space-y-1">
         {/*
          * Team canvases button:
@@ -138,7 +218,7 @@ export function OrgSidebar() {
         {/*
          * Favorite canvases button:
          * - Active (secondary) when the `favorites` query parameter is present.
-         * - Links to the home page with `favorites=true` query parameter.
+         * - Links to the home page with `?favorites=true` query parameter.
          */}
         <Button
           asChild
@@ -155,6 +235,23 @@ export function OrgSidebar() {
             <StarIcon className="mr-2 size-4" />
             Favorite canvases
           </Link>
+        </Button>
+
+        {/*
+         * Billing button:
+         * - Renders "Upgrade" for free-tier organizations (triggers Stripe Checkout).
+         * - Renders "Payment Settings" for subscribed organizations (opens Stripe portal).
+         * - Disabled while the Stripe redirect is in-flight (`pending === true`).
+         */}
+        <Button
+          className="w-full justify-start px-2 font-normal"
+          disabled={pending}
+          size="lg"
+          variant="ghost"
+          onClick={onClick}
+        >
+          <BanknoteIcon className="mr-2 size-4" />
+          {isSubscribed ? "Payment Settings" : "Upgrade"}
         </Button>
       </div>
     </div>

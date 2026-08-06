@@ -14,6 +14,13 @@ import { mutation, query } from "./_generated/server";
  */
 
 /**
+ * Maximum number of boards a non-subscribed organization is allowed to
+ * have. Organizations with an active subscription are exempt from this
+ * limit.
+ */
+const ORG_BOARD_LIMIT = 2;
+
+/**
  * Pool of placeholder cover images assigned to newly created boards.
  * A random entry is chosen each time a board is created.
  */
@@ -79,10 +86,41 @@ async function getFavorite(
 }
 
 /**
+ * Determines whether an organization currently has an active, non-expired
+ * subscription.
+ *
+ * @param ctx - The Convex mutation context.
+ * @param orgId - The id of the organization to check.
+ * @returns `true` if the organization has a subscription whose current
+ * billing period has not yet ended; otherwise `false`.
+ */
+async function isOrgSubscribed(
+  ctx: MutationCtx,
+  orgId: string,
+): Promise<boolean> {
+  const orgSubscription = await ctx.db
+    .query("orgSubscriptions")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .unique();
+
+  const periodEnd = orgSubscription?.stripeCurrentPeriodEnd;
+
+  return !!(periodEnd && periodEnd > Date.now());
+}
+
+/**
  * Creates a new board owned by the authenticated user within the given
  * organization, assigning it a random placeholder cover image.
  *
- * @throws {Error} If the caller is not authenticated.
+ * The existing-board-count check and the subscription check are
+ * independent of each other (both only require `args.orgId`), so they are
+ * performed concurrently. The board count query is capped at
+ * `ORG_BOARD_LIMIT` entries, since only whether the count meets or exceeds
+ * that limit is ever needed.
+ *
+ * @throws {Error} If the caller is not authenticated, or if the
+ * organization is not subscribed and has already reached
+ * `ORG_BOARD_LIMIT` boards.
  */
 export const create = mutation({
   args: {
@@ -91,6 +129,18 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
+
+    const [existingBoards, isSubscribed] = await Promise.all([
+      ctx.db
+        .query("boards")
+        .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+        .take(ORG_BOARD_LIMIT),
+      isOrgSubscribed(ctx, args.orgId),
+    ]);
+
+    if (!isSubscribed && existingBoards.length >= ORG_BOARD_LIMIT) {
+      throw new Error("Organization board limit reached!");
+    }
 
     const board = await ctx.db.insert("boards", {
       title: args.title,

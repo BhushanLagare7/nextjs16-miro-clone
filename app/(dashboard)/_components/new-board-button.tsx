@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { cn } from "@/lib/utils";
+import { useProModal } from "@/store/use-pro-modal";
 
 /**
  * Props for the NewBoardButton component.
@@ -49,6 +50,7 @@ interface NewBoardButtonProps {
  */
 export function NewBoardButton({ orgId, disabled }: NewBoardButtonProps) {
   const router = useRouter();
+  const { onOpen } = useProModal();
 
   /**
    * `mutate`  – Calls the Convex `board.create` mutation.
@@ -75,7 +77,10 @@ export function NewBoardButton({ orgId, disabled }: NewBoardButtonProps) {
         // Navigate directly into the new board after creation.
         router.push(`/board/${id}`);
       })
-      .catch(() => toast.error("Failed to create board"));
+      .catch(() => {
+        toast.error("Failed to create board");
+        onOpen();
+      });
   };
 
   return (
